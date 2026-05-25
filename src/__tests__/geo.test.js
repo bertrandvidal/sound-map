@@ -73,4 +73,20 @@ describe('lookupArtistLocation', () => {
       placeName: 'London',
     })
   })
+
+  it('returns null when MusicBrainz returns an HTTP error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }))
+    expect(await lookupArtistLocation('Test Artist')).toBeNull()
+  })
+
+  it('returns null when Nominatim returns an HTTP error', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ artists: [{ name: 'Test', 'begin-area': { name: 'Somewhere' } }] })
+      })
+      .mockResolvedValueOnce({ ok: false, status: 429 })
+    vi.stubGlobal('fetch', fetchMock)
+    expect(await lookupArtistLocation('Test Artist')).toBeNull()
+  })
 })
