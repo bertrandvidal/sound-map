@@ -24,6 +24,7 @@ export default function MapView({ token, onSessionExpired }) {
           return
         }
 
+        // update track immediately; location catches up asynchronously
         setTrack(current)
         setStatus('playing')
 
@@ -41,6 +42,7 @@ export default function MapView({ token, onSessionExpired }) {
         }
         if (err.message.startsWith('RATE_LIMITED:')) {
           const seconds = parseInt(err.message.split(':')[1], 10)
+          // safe to schedule even near unmount: poll() checks cancelled at the top
           setTimeout(poll, seconds * 1000)
           return
         }
@@ -70,5 +72,6 @@ export default function MapView({ token, onSessionExpired }) {
     )
   }
 
+  // renders for 'loading' (initial) and 'playing' — LeafletMap handles null track/location
   return <LeafletMap track={track} location={location} />
 }
