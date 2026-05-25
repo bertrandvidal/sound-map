@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import LoginButton from './components/LoginButton.jsx'
+import MapView from './components/MapView.jsx'
 
 export default function App() {
   const [token, setToken] = useState(null)
@@ -14,7 +15,17 @@ export default function App() {
     if (t || e) window.history.replaceState({}, '', '/')
   }, [])
 
-  if (token) return <p>Logged in! Map coming in Task 8.</p>
+  if (token) {
+    return (
+      <MapView
+        token={token}
+        onSessionExpired={() => {
+          setToken(null)
+          setError('session_expired')
+        }}
+      />
+    )
+  }
 
   return <LoginButton error={error} />
 }
