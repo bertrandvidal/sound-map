@@ -1,4 +1,5 @@
 const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID
+if (!CLIENT_ID) throw new Error('VITE_SPOTIFY_CLIENT_ID is not set — check your .env file')
 const REDIRECT_URI = 'http://127.0.0.1:3000/callback'
 const SCOPE = 'user-read-currently-playing'
 
@@ -30,7 +31,7 @@ export async function fetchCurrentlyPlaying(token) {
 
   return {
     trackName: data.item.name,
-    artistName: data.item.artists[0].name,
-    albumImageUrl: data.item.album.images[0].url,
+    artistName: data.item.artists[0]?.name ?? null,
+    albumImageUrl: data.item.album.images[0]?.url ?? null,
   }
 }

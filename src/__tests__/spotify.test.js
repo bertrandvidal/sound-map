@@ -59,4 +59,11 @@ describe('fetchCurrentlyPlaying', () => {
       albumImageUrl: 'https://example.com/art.jpg',
     })
   })
+
+  it('throws SPOTIFY_ERROR on unexpected HTTP status (e.g. 503)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      status: 503, ok: false, headers: { get: () => null }
+    }))
+    await expect(fetchCurrentlyPlaying('token')).rejects.toThrow('SPOTIFY_ERROR:503')
+  })
 })
