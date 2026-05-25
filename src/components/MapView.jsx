@@ -4,6 +4,7 @@ import { lookupArtistLocation } from '../geo.js'
 import LeafletMap from './LeafletMap.jsx'
 
 const POLL_MS = 10_000
+const PACIFIC_FALLBACK = { lat: 0, lng: -160, placeName: 'Unknown location' }
 
 export default function MapView({ token, onSessionExpired }) {
   const [track, setTrack] = useState(null)
@@ -31,8 +32,7 @@ export default function MapView({ token, onSessionExpired }) {
         if (current.artistName !== lastArtistRef.current) {
           lastArtistRef.current = current.artistName
           const loc = await lookupArtistLocation(current.artistName)
-          // only update location on success — keep previous bubble if geo lookup fails
-          if (!cancelled && loc) setLocation(loc)
+          if (!cancelled) setLocation(loc ?? PACIFIC_FALLBACK)
         }
       } catch (err) {
         if (cancelled) return
