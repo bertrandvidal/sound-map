@@ -3,7 +3,7 @@ import { fetchCurrentlyPlaying } from '../spotify.js'
 import { lookupArtistLocation } from '../geo.js'
 import LeafletMap from './LeafletMap.jsx'
 
-const POLL_MS = 10_000
+const POLL_MS = 3_000
 const PACIFIC_FALLBACK = { lat: 0, lng: -160, placeName: 'Unknown location' }
 
 export default function MapView({ token, onSessionExpired }) {
