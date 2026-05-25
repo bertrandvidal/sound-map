@@ -1,3 +1,22 @@
+import { useState, useEffect } from 'react'
+import LoginButton from './components/LoginButton.jsx'
+
 export default function App() {
-  return <p>sound-map loading...</p>
+  const [token, setToken] = useState(null)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const t = params.get('token')
+    const e = params.get('error')
+    if (t) {
+      setToken(decodeURIComponent(t))
+      window.history.replaceState({}, '', '/')
+    }
+    if (e) setError(e)
+  }, [])
+
+  if (token) return <p>Logged in! Map coming in Task 8.</p>
+
+  return <LoginButton error={error} />
 }
