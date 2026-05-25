@@ -46,8 +46,16 @@ app.get('/callback', async (req, res) => {
     return res.redirect(`${FRONTEND_URL}?error=token_exchange_failed`)
   }
 
-  const { access_token } = await tokenResponse.json()
-  res.redirect(`${FRONTEND_URL}?token=${access_token}`)
+  try {
+    const { access_token } = await tokenResponse.json()
+    if (!access_token) {
+      return res.redirect(`${FRONTEND_URL}?error=token_exchange_failed`)
+    }
+    res.redirect(`${FRONTEND_URL}?token=${encodeURIComponent(access_token)}`)
+  } catch (err) {
+    console.error('Failed to parse token response:', err)
+    res.redirect(`${FRONTEND_URL}?error=token_exchange_failed`)
+  }
 })
 
 app.listen(3000, '127.0.0.1', () => {
