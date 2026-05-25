@@ -9,11 +9,9 @@ export default function App() {
     const params = new URLSearchParams(window.location.search)
     const t = params.get('token')
     const e = params.get('error')
-    if (t) {
-      setToken(decodeURIComponent(t))
-      window.history.replaceState({}, '', '/')
-    }
+    if (t) setToken(decodeURIComponent(t))
     if (e) setError(e)
+    if (t || e) window.history.replaceState({}, '', '/')
   }, [])
 
   if (token) return <p>Logged in! Map coming in Task 8.</p>
