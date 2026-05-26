@@ -60,6 +60,22 @@ Tests use **Vitest** with `jsdom` environment. All HTTP calls are mocked via `vi
 
 Follow the template at `~/.git-template.txt`: each commit message should have **Why**, **How**, and **Tests** sections.
 
+## Dev workflow
+
+A pre-commit hook runs automatically on every `git commit`:
+
+```bash
+npx biome check . && npm test
+```
+
+If the hook blocks your commit:
+- **Biome error:** run `npx biome check --write <file>`, then `git add <file>` and re-commit
+- **Test failure:** fix the failing test or the code, then re-commit
+
+Never use `git commit --no-verify` to bypass the hook — fix the issue instead.
+
+The same checks run in GitHub Actions CI on every push and PR. PRs cannot be merged to `main` until CI passes.
+
 ## Superpowers
 
 This repo uses https://github.com/obra/superpowers, all info stored in docs/superpowers.
