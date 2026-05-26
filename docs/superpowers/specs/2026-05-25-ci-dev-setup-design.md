@@ -66,14 +66,16 @@ npx biome check . && npm test
 
 | Step | Command | Purpose |
 |------|---------|---------|
-| Checkout | `actions/checkout@v4` | Get the code |
-| Setup Node | `actions/setup-node@v4` with Node 20 LTS | Runtime |
+| Checkout | `actions/checkout@v6` | Get the code |
+| Setup Node | `actions/setup-node@v6` with Node 20 LTS | Runtime |
 | Install | `npm ci` | Clean install from lockfile — catches undeclared deps |
 | Lint + format | `npx biome check .` | Same check as pre-commit hook |
 | Tests + coverage | `npx vitest run --coverage` | Runs all tests, writes coverage summary |
 | Build | `npx vite build` | Catches production build failures that tests won't catch |
 | Audit | `npm audit --audit-level=high` | Flags known CVEs in dependencies |
-| Coverage comment | `davelosert/vitest-coverage-report@v2` | Posts coverage table as PR comment (no-op on plain pushes) |
+| Coverage comment | `davelosert/vitest-coverage-report-action@v2` | Posts coverage table as PR comment (no-op on plain pushes) |
+
+Action versions are pinned to major version only (e.g. `@v6`, `@v2`) — no need to lock to patch/minor.
 
 Steps run sequentially. A failure in any step fails the job and blocks the PR.
 
@@ -87,13 +89,22 @@ Coverage configured in `vite.config.js` under the `test.coverage` key:
 coverage: {
   provider: 'v8',
   reporter: ['text', 'json-summary'],
+  include: ['src/geo.js', 'src/spotify.js'],
+  thresholds: {
+    statements: 90,
+    branches: 75,
+    functions: 100,
+  },
 }
 ```
 
 - `text` — prints the coverage table in CI logs
-- `json-summary` — required by `davelosert/vitest-coverage-report` to generate the PR comment
+- `json-summary` — required by `davelosert/vitest-coverage-report-action` to generate the PR comment
+- `include` — scoped to the two logic files that have unit tests; React components and `server/index.js` are excluded until component and integration tests are added
 
-**Thresholds:** not configured initially. Run CI on the first PR to see the baseline, then add `thresholds` to this config block.
+**Baseline (as of 2026-05-25):** `geo.js` at 92.5% statements / 93.3% branch / 100% functions; `spotify.js` at 100% / 75% / 100%.
+
+**Future work — testing coverage:** React components (`AlbumBubble`, `LeafletMap`, `LoginButton`, `MapView`, `App`) currently have 0% coverage and require React Testing Library + DOM rendering to test. `server/index.js` requires integration testing. As those tests are added, expand `include` and raise thresholds accordingly.
 
 ### 5. Branch Protection
 
@@ -124,7 +135,7 @@ Add to the `## Git commits` section or a new `## Dev workflow` section:
 
 ## What This Does Not Cover
 
-- Coverage thresholds (add after seeing baseline)
+- Component tests (React Testing Library) and integration tests for `server/index.js` — needed to expand coverage scope beyond the two logic files
 - Multi-Node-version matrix (not needed at this scale)
 - Deployment pipeline (Phase 2 / AWS)
 - Codecov or other external coverage tracking services
