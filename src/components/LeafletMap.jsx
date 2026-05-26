@@ -1,16 +1,16 @@
-import { useEffect } from 'react'
-import { MapContainer, TileLayer, useMap } from 'react-leaflet'
-import 'leaflet/dist/leaflet.css'
-import AlbumBubble from './AlbumBubble.jsx'
+import { useEffect } from "react";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import AlbumBubble from "./AlbumBubble.jsx";
 
 function MapController({ location }) {
-  const map = useMap()
+  const map = useMap();
   useEffect(() => {
     if (location) {
-      map.flyTo([location.lat, location.lng], 8, { duration: 1.5 })
+      map.flyTo([location.lat, location.lng], 8, { duration: 1.5 });
     }
-  }, [location, map])
-  return null
+  }, [location, map]);
+  return null;
 }
 
 export default function LeafletMap({ track, location }) {
@@ -18,7 +18,7 @@ export default function LeafletMap({ track, location }) {
     <MapContainer
       center={[20, 0]}
       zoom={2}
-      style={{ height: '100vh', width: '100%' }}
+      style={{ height: "100vh", width: "100%" }}
     >
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -36,5 +36,5 @@ export default function LeafletMap({ track, location }) {
         </>
       )}
     </MapContainer>
-  )
+  );
 }

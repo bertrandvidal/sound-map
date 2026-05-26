@@ -1,5 +1,6 @@
 node_modules/
 dist/
+coverage/
 
 # .env.test is intentionally NOT ignored — it contains only fake test credentials
 # and must be committed so npm test works without any setup
