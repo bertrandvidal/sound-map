@@ -6,8 +6,13 @@
     "dev": "vite",
     "server": "node server/index.js",
     "start": "concurrently \"npm run dev\" \"npm run server\"",
+    "build": "vite build",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "postinstall": "npx simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npx biome check . && npm test"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
@@ -23,6 +28,7 @@
     "@vitest/coverage-v8": "^1.6.1",
     "concurrently": "^8.2.2",
     "jsdom": "^24.0.0",
+    "simple-git-hooks": "^2.13.1",
     "vite": "^5.1.4",
     "vitest": "^1.3.1"
   }
