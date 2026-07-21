@@ -4,7 +4,7 @@ import { classifyPollError } from "../pollError.js";
 import { fetchCurrentlyPlaying } from "../spotify.js";
 import LeafletMap from "./LeafletMap.jsx";
 
-const POLL_MS = 3_000;
+const POLL_MS = 5_000;
 const PACIFIC_FALLBACK = { lat: 0, lng: -160, placeName: "Unknown location" };
 
 export default function MapView({ token, onTokenExpired }) {
@@ -19,14 +19,11 @@ export default function MapView({ token, onTokenExpired }) {
 
     async function poll() {
       try {
-        if (import.meta.env.DEV) {
-          // Debug: confirms whether empty-token requests occur (logout hypothesis).
-          console.debug("[poll] token present:", Boolean(token));
-        }
         const current = await fetchCurrentlyPlaying(token);
         if (cancelled) return;
 
         if (!current) {
+          if (import.meta.env.DEV) console.info("[poll] nothing playing");
           setStatus("idle");
           return;
         }
@@ -34,9 +31,19 @@ export default function MapView({ token, onTokenExpired }) {
         // update track immediately; location catches up asynchronously
         setTrack(current);
         setStatus("playing");
+        if (import.meta.env.DEV) {
+          console.info(
+            `[poll] now playing: ${current.artistName} – ${current.trackName}`,
+          );
+        }
 
         if (current.artistName !== lastArtistRef.current) {
           lastArtistRef.current = current.artistName;
+          if (import.meta.env.DEV) {
+            console.info(
+              `[poll] artist changed, looking up ${current.artistName}`,
+            );
+          }
           const loc = await lookupArtistLocation(current.artistName);
           if (!cancelled) setLocation(loc ?? PACIFIC_FALLBACK);
         }
@@ -47,6 +54,8 @@ export default function MapView({ token, onTokenExpired }) {
           // Guard: one refresh in flight, even if overlapping polls all 401.
           if (refreshingRef.current) return;
           refreshingRef.current = true;
+          if (import.meta.env.DEV)
+            console.info("[poll] token expired, refreshing");
           try {
             await onTokenExpired();
           } finally {
@@ -55,11 +64,14 @@ export default function MapView({ token, onTokenExpired }) {
           return;
         }
         if (action.type === "retry") {
+          if (import.meta.env.DEV) {
+            console.info(`[poll] rate limited, retrying in ${action.seconds}s`);
+          }
           // safe to schedule even near unmount: poll() checks cancelled at the top
           setTimeout(poll, action.seconds * 1000);
           return;
         }
-        console.error("Poll error:", err);
+        console.error("[poll] error:", err.message);
         setStatus("error");
       }
     }
