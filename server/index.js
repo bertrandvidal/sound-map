@@ -1,12 +1,14 @@
+import { randomUUID } from "node:crypto";
 import "dotenv/config";
 import express from "express";
+import { exchangeRefreshToken, parseCookies } from "./auth.js";
 
 const app = express();
 
 const CLIENT_ID = process.env.VITE_SPOTIFY_CLIENT_ID;
 const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 const REDIRECT_URI = "http://127.0.0.1:3000/callback";
-const FRONTEND_URL = "http://localhost:5173";
+const FRONTEND_URL = "http://127.0.0.1:5173";
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
   console.error(
@@ -14,6 +16,10 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
   );
   process.exit(1);
 }
+
+// sessionId -> { refreshToken }. In-memory: a server restart clears sessions
+// (re-login), which is acceptable for local dev. Swap for a real store later.
+const sessions = new Map();
 
 app.get("/callback", async (req, res) => {
   const { code, error } = req.query;
@@ -54,15 +60,51 @@ app.get("/callback", async (req, res) => {
     return res.redirect(`${FRONTEND_URL}?error=token_exchange_failed`);
   }
 
+  let refreshToken;
   try {
-    const { access_token } = await tokenResponse.json();
-    if (!access_token) {
+    const body = await tokenResponse.json();
+    refreshToken = body.refresh_token;
+    if (!refreshToken) {
       return res.redirect(`${FRONTEND_URL}?error=token_exchange_failed`);
     }
-    res.redirect(`${FRONTEND_URL}?token=${encodeURIComponent(access_token)}`);
   } catch (err) {
     console.error("Failed to parse token response:", err);
-    res.redirect(`${FRONTEND_URL}?error=token_exchange_failed`);
+    return res.redirect(`${FRONTEND_URL}?error=token_exchange_failed`);
+  }
+
+  const sessionId = randomUUID();
+  sessions.set(sessionId, { refreshToken });
+
+  res.cookie("sid", sessionId, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: false, // http on localhost/127.0.0.1
+    path: "/",
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+  });
+
+  // No token in the URL — the SPA fetches one via POST /api/refresh.
+  res.redirect(FRONTEND_URL);
+});
+
+app.post("/api/refresh", async (req, res) => {
+  const { sid } = parseCookies(req.headers.cookie);
+  const session = sid ? sessions.get(sid) : undefined;
+  if (!session) {
+    return res.status(401).json({ error: "no_session" });
+  }
+
+  try {
+    const { accessToken, expiresIn, refreshToken } = await exchangeRefreshToken(
+      session.refreshToken,
+      { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET },
+    );
+    session.refreshToken = refreshToken; // persist Spotify rotation
+    res.json({ access_token: accessToken, expires_in: expiresIn });
+  } catch (err) {
+    console.error("Refresh failed:", err.message);
+    sessions.delete(sid);
+    res.status(401).json({ error: "refresh_failed" });
   }
 });
 
