@@ -1,22 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { lookupArtistLocation } from "../geo.js";
+import { classifyPollError } from "../pollError.js";
 import { fetchCurrentlyPlaying } from "../spotify.js";
 import LeafletMap from "./LeafletMap.jsx";
 
 const POLL_MS = 3_000;
 const PACIFIC_FALLBACK = { lat: 0, lng: -160, placeName: "Unknown location" };
 
-export default function MapView({ token, onSessionExpired }) {
+export default function MapView({ token, onTokenExpired }) {
   const [track, setTrack] = useState(null);
   const [location, setLocation] = useState(null);
   const [status, setStatus] = useState("loading");
   const lastArtistRef = useRef(null);
+  const refreshingRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function poll() {
       try {
+        if (import.meta.env.DEV) {
+          // Debug: confirms whether empty-token requests occur (logout hypothesis).
+          console.debug("[poll] token present:", Boolean(token));
+        }
         const current = await fetchCurrentlyPlaying(token);
         if (cancelled) return;
 
@@ -36,14 +42,21 @@ export default function MapView({ token, onSessionExpired }) {
         }
       } catch (err) {
         if (cancelled) return;
-        if (err.message === "TOKEN_EXPIRED") {
-          onSessionExpired();
+        const action = classifyPollError(err.message);
+        if (action.type === "refresh") {
+          // Guard: one refresh in flight, even if overlapping polls all 401.
+          if (refreshingRef.current) return;
+          refreshingRef.current = true;
+          try {
+            await onTokenExpired();
+          } finally {
+            refreshingRef.current = false;
+          }
           return;
         }
-        if (err.message.startsWith("RATE_LIMITED:")) {
-          const seconds = parseInt(err.message.split(":")[1], 10);
+        if (action.type === "retry") {
           // safe to schedule even near unmount: poll() checks cancelled at the top
-          setTimeout(poll, seconds * 1000);
+          setTimeout(poll, action.seconds * 1000);
           return;
         }
         console.error("Poll error:", err);
@@ -57,7 +70,7 @@ export default function MapView({ token, onSessionExpired }) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [token, onSessionExpired]);
+  }, [token, onTokenExpired]);
 
   if (status === "idle") {
     return (
