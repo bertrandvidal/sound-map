@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "04c276d27cb8",
+  "strategy": "manual-commit",
+  "branch": "token-refresh",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/__tests__/pollError.test.js",
+    "src/pollError.js",
+    "vite.config.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/04/c276d27cb8/0/metadata.json",
+      "transcript": "/04/c276d27cb8/0/full.jsonl",
+      "compact_transcript": "/04/c276d27cb8/0/transcript.jsonl",
+      "content_hash": "/04/c276d27cb8/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
