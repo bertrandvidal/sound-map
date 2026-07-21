@@ -15,7 +15,12 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary", "json"],
-      include: ["src/geo.js", "src/spotify.js", "src/pollError.js"],
+      include: [
+        "src/geo.js",
+        "src/spotify.js",
+        "src/pollError.js",
+        "src/auth.js",
+      ],
       thresholds: {
         statements: 90,
         branches: 75,
