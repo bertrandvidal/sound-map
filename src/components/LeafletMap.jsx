@@ -7,7 +7,7 @@ function MapController({ location }) {
   const map = useMap();
   useEffect(() => {
     if (location) {
-      map.flyTo([location.lat, location.lng], 8, { duration: 1.5 });
+      map.flyTo([location.lat, location.lng], 6, { duration: 1.5 });
     }
   }, [location, map]);
   return null;
