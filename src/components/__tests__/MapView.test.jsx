@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../geo.js", () => ({
@@ -9,6 +9,7 @@ vi.mock("../LeafletMap.jsx", () => ({
   default: () => <div data-testid="leaflet-map" />,
 }));
 
+import { lookupArtistLocation } from "../../geo.js";
 import { fetchCurrentlyPlaying } from "../../spotify.js";
 import MapView from "../MapView.jsx";
 
@@ -55,5 +56,35 @@ describe("MapView poll loop", () => {
     expect(onTokenExpired).toHaveBeenCalledTimes(1);
     resolveRefresh?.();
     vi.useRealTimers();
+  });
+
+  it("looks up the artist and renders the map when a track is playing", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue({
+      artistName: "Radiohead",
+      trackName: "Idioteque",
+    });
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("leaflet-map")).toBeInTheDocument(),
+    );
+    expect(lookupArtistLocation).toHaveBeenCalledWith("Radiohead");
+  });
+
+  it("shows the idle message when nothing is playing", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(null);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByText("Play something on Spotify")).toBeInTheDocument(),
+    );
+  });
+
+  it("shows the error message on an unrecognized poll error", async () => {
+    fetchCurrentlyPlaying.mockRejectedValue(new Error("SPOTIFY_ERROR:500"));
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(
+        screen.getByText("Something went wrong. Check the console."),
+      ).toBeInTheDocument(),
+    );
   });
 });
