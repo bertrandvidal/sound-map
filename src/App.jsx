@@ -1,30 +1,64 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { refreshAccessToken } from "./auth.js";
 import LoginButton from "./components/LoginButton.jsx";
 import MapView from "./components/MapView.jsx";
 
 export default function App() {
   const [token, setToken] = useState(null);
   const [error, setError] = useState(null);
+  const [booting, setBooting] = useState(true);
 
+  // Surface an OAuth ?error from the callback redirect, then clean the URL.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const t = params.get("token");
     const e = params.get("error");
-    if (t) setToken(decodeURIComponent(t));
-    if (e) setError(e);
-    if (t || e) window.history.replaceState({}, "", "/");
+    if (e) {
+      setError(e);
+      window.history.replaceState({}, "", "/");
+    }
   }, []);
 
+  // Bootstrap: exchange the session cookie for an access token.
+  useEffect(() => {
+    let cancelled = false;
+    if (import.meta.env.DEV) console.info("[app] bootstrapping session");
+    refreshAccessToken()
+      .then((t) => {
+        if (cancelled) return;
+        if (import.meta.env.DEV) console.info("[app] session restored");
+        setToken(t);
+      })
+      .catch(() => {
+        if (import.meta.env.DEV)
+          console.info("[app] no active session, showing login");
+      })
+      .finally(() => {
+        if (!cancelled) setBooting(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // A poll hit a 401: try to refresh; only truly log out if that fails.
+  const handleTokenExpired = useCallback(async () => {
+    if (import.meta.env.DEV) console.info("[app] token expired, refreshing");
+    try {
+      const t = await refreshAccessToken();
+      if (import.meta.env.DEV) console.info("[app] token refreshed");
+      setToken(t);
+    } catch {
+      if (import.meta.env.DEV)
+        console.info("[app] refresh failed, logging out");
+      setToken(null);
+      setError("session_expired");
+    }
+  }, []);
+
+  if (booting) return null;
+
   if (token) {
-    return (
-      <MapView
-        token={token}
-        onSessionExpired={() => {
-          setToken(null);
-          setError("session_expired");
-        }}
-      />
-    );
+    return <MapView token={token} onTokenExpired={handleTokenExpired} />;
   }
 
   return <LoginButton error={error} />;

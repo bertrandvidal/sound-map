@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { lookupArtistLocation } from "../geo.js";
+import { classifyPollError } from "../pollError.js";
 import { fetchCurrentlyPlaying } from "../spotify.js";
 import LeafletMap from "./LeafletMap.jsx";
 
-const POLL_MS = 3_000;
+const POLL_MS = 5_000;
 const PACIFIC_FALLBACK = { lat: 0, lng: -160, placeName: "Unknown location" };
 
-export default function MapView({ token, onSessionExpired }) {
+export default function MapView({ token, onTokenExpired }) {
   const [track, setTrack] = useState(null);
   const [location, setLocation] = useState(null);
   const [status, setStatus] = useState("loading");
   const lastArtistRef = useRef(null);
+  const refreshingRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -21,6 +23,7 @@ export default function MapView({ token, onSessionExpired }) {
         if (cancelled) return;
 
         if (!current) {
+          if (import.meta.env.DEV) console.info("[poll] nothing playing");
           setStatus("idle");
           return;
         }
@@ -28,25 +31,47 @@ export default function MapView({ token, onSessionExpired }) {
         // update track immediately; location catches up asynchronously
         setTrack(current);
         setStatus("playing");
+        if (import.meta.env.DEV) {
+          console.info(
+            `[poll] now playing: ${current.artistName} – ${current.trackName}`,
+          );
+        }
 
         if (current.artistName !== lastArtistRef.current) {
           lastArtistRef.current = current.artistName;
+          if (import.meta.env.DEV) {
+            console.info(
+              `[poll] artist changed, looking up ${current.artistName}`,
+            );
+          }
           const loc = await lookupArtistLocation(current.artistName);
           if (!cancelled) setLocation(loc ?? PACIFIC_FALLBACK);
         }
       } catch (err) {
         if (cancelled) return;
-        if (err.message === "TOKEN_EXPIRED") {
-          onSessionExpired();
+        const action = classifyPollError(err.message);
+        if (action.type === "refresh") {
+          // Guard: one refresh in flight, even if overlapping polls all 401.
+          if (refreshingRef.current) return;
+          refreshingRef.current = true;
+          if (import.meta.env.DEV)
+            console.info("[poll] token expired, refreshing");
+          try {
+            await onTokenExpired();
+          } finally {
+            refreshingRef.current = false;
+          }
           return;
         }
-        if (err.message.startsWith("RATE_LIMITED:")) {
-          const seconds = parseInt(err.message.split(":")[1], 10);
+        if (action.type === "retry") {
+          if (import.meta.env.DEV) {
+            console.info(`[poll] rate limited, retrying in ${action.seconds}s`);
+          }
           // safe to schedule even near unmount: poll() checks cancelled at the top
-          setTimeout(poll, seconds * 1000);
+          setTimeout(poll, action.seconds * 1000);
           return;
         }
-        console.error("Poll error:", err);
+        console.error("[poll] error:", err.message);
         setStatus("error");
       }
     }
@@ -57,7 +82,7 @@ export default function MapView({ token, onSessionExpired }) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [token, onSessionExpired]);
+  }, [token, onTokenExpired]);
 
   if (status === "idle") {
     return (
