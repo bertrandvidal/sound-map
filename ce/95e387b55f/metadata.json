@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "ce95e387b55f",
+  "strategy": "manual-commit",
+  "branch": "token-refresh",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "server/__tests__/auth.test.js",
+    "server/auth.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ce/95e387b55f/0/metadata.json",
+      "transcript": "/ce/95e387b55f/0/full.jsonl",
+      "compact_transcript": "/ce/95e387b55f/0/transcript.jsonl",
+      "content_hash": "/ce/95e387b55f/0/content_hash.txt",
+      "prompt": "/ce/95e387b55f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 3,
+    "cache_creation_tokens": 8699,
+    "cache_read_tokens": 225005,
+    "output_tokens": 1655,
+    "api_call_count": 2
+  }
+}
