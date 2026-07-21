@@ -21,12 +21,16 @@ export default function App() {
   // Bootstrap: exchange the session cookie for an access token.
   useEffect(() => {
     let cancelled = false;
+    if (import.meta.env.DEV) console.info("[app] bootstrapping session");
     refreshAccessToken()
       .then((t) => {
-        if (!cancelled) setToken(t);
+        if (cancelled) return;
+        if (import.meta.env.DEV) console.info("[app] session restored");
+        setToken(t);
       })
       .catch(() => {
-        // No valid session — fall through to the login screen.
+        if (import.meta.env.DEV)
+          console.info("[app] no active session, showing login");
       })
       .finally(() => {
         if (!cancelled) setBooting(false);
@@ -38,10 +42,14 @@ export default function App() {
 
   // A poll hit a 401: try to refresh; only truly log out if that fails.
   const handleTokenExpired = useCallback(async () => {
+    if (import.meta.env.DEV) console.info("[app] token expired, refreshing");
     try {
       const t = await refreshAccessToken();
+      if (import.meta.env.DEV) console.info("[app] token refreshed");
       setToken(t);
     } catch {
+      if (import.meta.env.DEV)
+        console.info("[app] refresh failed, logging out");
       setToken(null);
       setError("session_expired");
     }

@@ -4,6 +4,7 @@ import { refreshAccessToken } from "../auth.js";
 describe("refreshAccessToken", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(console, "info").mockImplementation(() => {});
   });
 
   it("returns the access token on HTTP 200", async () => {
