@@ -1,0 +1,5 @@
+To the same branch I want to increase the poll interval to 5s, add more info logging (both back end and front end) so it's easier to understand what's going on (let's make sure NOT to log anything sensitive), let's ensure that each file has tests and coverage (if some shouldn't have coverage tell me why)
+
+---
+
+All good, write the spec and kick off implementation
