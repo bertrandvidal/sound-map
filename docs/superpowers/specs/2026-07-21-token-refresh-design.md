@@ -66,14 +66,40 @@ MapView polls; on 401 → onTokenExpired() → POST /refresh → new token → r
   `expires_in`. Generate `sessionId` via `crypto.randomUUID()`,
   `sessions.set(sessionId, { refreshToken })`, set httpOnly `SameSite=Lax`
   cookie `sid` (path `/`, `secure=false` for http localhost). Redirect to
-  `FRONTEND_URL` with **no token in the URL**.
-- **`POST /refresh`** (new): parse `sid` from `req.headers.cookie` (manual parse,
-  no `cookie-parser` dependency), look up the refresh token. Call Spotify's token
-  endpoint with `grant_type=refresh_token` + the client-secret Basic credentials.
-  Return `{ access_token, expires_in }` as JSON. Missing session or Spotify
-  rejection → **401**. If Spotify returns a new `refresh_token`, update the stored
-  one.
+  `FRONTEND_URL` (now `http://127.0.0.1:5173`) with **no token in the URL**.
+- **`POST /api/refresh`** (new, reached via the Vite proxy): parse `sid` from
+  `req.headers.cookie` (manual parse, no `cookie-parser` dependency), look up the
+  refresh token. Call Spotify's token endpoint with `grant_type=refresh_token` +
+  the client-secret Basic credentials. Return `{ access_token, expires_in }` as
+  JSON. Missing session or Spotify rejection → **401**. If Spotify returns a new
+  `refresh_token`, update the stored one.
+- Pure helpers extracted to **`server/auth.js`** (`parseCookies(header)`,
+  `exchangeRefreshToken(refreshToken, { clientId, clientSecret })`) so the
+  network/parse logic is unit-testable without starting the Express listener.
 - `res.cookie()` is built into Express; only reading needs manual parsing.
+
+### Dev cross-origin cookies (Vite proxy)
+
+The frontend (`:5173`) and OAuth server (`:3000`) are different origins, so a
+naive cross-origin `fetch` to `:3000` would not send an httpOnly session cookie
+(and would need CORS). Solution:
+
+- **Vite dev proxy:** `vite.config.js` proxies `/api` → `http://127.0.0.1:3000`.
+  The SPA calls the refresh endpoint at the **relative** path `/api/refresh`, so
+  from the browser's view it is same-origin; Vite forwards it to the server. No
+  CORS configuration is needed.
+- **Align on `127.0.0.1`:** Spotify's `redirect_uri` must be `127.0.0.1` (not
+  `localhost`), so `/callback` runs on `127.0.0.1:3000` and sets the `sid` cookie
+  for host `127.0.0.1` (cookies ignore port). The frontend is therefore accessed
+  at `http://127.0.0.1:5173` (Vite `server.host` set accordingly, and
+  `FRONTEND_URL` changes from `localhost` to `127.0.0.1`) so the same
+  `127.0.0.1` cookie is presented on the same-origin `/api/refresh` call.
+- **Cookie attributes:** httpOnly, `SameSite=Lax`, `Secure=false` (http
+  localhost), path `/`. Lax is sufficient because the SPA only ever issues
+  same-origin requests to itself, and `/callback` arrives via top-level
+  navigation.
+- The server route is therefore `POST /api/refresh` (proxied); `GET /callback`
+  stays a direct top-level hit from Spotify's redirect.
 
 ### Security: remove token-in-URL
 
@@ -85,18 +111,30 @@ handling for `access_denied` is retained.
 
 ### Client
 
-- **`App.jsx`**: owns `refreshAccessToken()` (calls `POST /refresh`, updates
-  `token` state). On mount, calls it: `200` → set token; `401` → show
-  `LoginButton`. Removes URL-token reading; keeps `?error` handling.
-- **`MapView`**: on `TOKEN_EXPIRED`, call `onTokenExpired()` (→
-  `refreshAccessToken()`) instead of hard logout. Success updates `token` state →
-  the effect re-runs with the new token → polling resumes. Only if `/refresh`
-  fails does it fall through to `onSessionExpired()` (real logout).
-- **Loop guard + debug:** a poll triggers at most one refresh before giving up
-  (no tight refresh loop). A one-line debug log of token presence at the top of
-  `poll()` confirms whether empty-token requests occur (the premature-logout
+Following the codebase pattern (coverage gates only pure modules; React
+components are thin glue), the new logic lives in two testable pure modules and
+the components stay thin:
+
+- **`src/auth.js`** (new, pure): `refreshAccessToken()` → `POST /api/refresh`
+  with `credentials: "include"`; returns the access-token string on `200`;
+  throws `SESSION_EXPIRED` on `401`/failure. Mirrors `spotify.js` structure.
+- **`src/pollError.js`** (new, pure): `classifyPollError(message)` → a small
+  descriptor (`{ type: "refresh" }`, `{ type: "retry", seconds }`, or
+  `{ type: "error" }`) so `MapView`'s catch block is a thin dispatch that can be
+  tested without rendering.
+- **`App.jsx`** (thin glue): on mount calls `refreshAccessToken()` — `200` → set
+  token; throw → show `LoginButton`. Provides `onTokenExpired`, which calls
+  `refreshAccessToken()` and either updates `token` state (recover) or triggers
+  `onSessionExpired` (real logout). Removes URL-token reading; keeps `?error`.
+- **`MapView`** (thin glue): uses `classifyPollError`; on `type: "refresh"`
+  `await`s `onTokenExpired()` instead of hard logout, with a one-refresh-per-poll
+  guard (no tight loop). Adds a one-line debug log of token presence at the top
+  of `poll()` to confirm whether empty-token requests occur (the premature-logout
   hypothesis).
 - **`spotify.js`**: unchanged — still throws `TOKEN_EXPIRED` on 401.
+
+Both new modules are added to the Vitest coverage `include` list and must meet
+the existing thresholds (functions 100%).
 
 ## Error handling
 
@@ -111,10 +149,20 @@ handling for `access_denied` is retained.
 
 ## Testing (Vitest, all `fetch` mocked)
 
-- Extract the Spotify refresh call into a small testable helper; unit-test
-  success and Spotify-rejection paths with mocked `fetch`.
-- Client: `MapView` gets a 401 → calls `onTokenExpired`, does **not** log out; a
-  second 401 *after* a failed refresh → logs out.
+- **`server/auth.js`** (`server/__tests__/auth.test.js`): `parseCookies` parses a
+  `Cookie` header into an object (and handles absent/empty headers);
+  `exchangeRefreshToken` returns `{ accessToken, expiresIn, refreshToken }` on a
+  Spotify `200` and throws on a Spotify error response.
+- **`src/auth.js`** (`src/__tests__/auth.test.js`): `refreshAccessToken` returns
+  the access token on `200`; throws `SESSION_EXPIRED` on `401`.
+- **`src/pollError.js`** (`src/__tests__/pollError.test.js`): `classifyPollError`
+  maps `TOKEN_EXPIRED` → `refresh`, `RATE_LIMITED:10` → `retry`/`seconds`, and
+  anything else → `error`.
+- The recover-vs-logout decision is thereby covered by pure units
+  (`classifyPollError` routes a 401 to refresh; `refreshAccessToken` throwing
+  `SESSION_EXPIRED` drives the real logout); the thin `App`/`MapView` glue is
+  verified during the manual run — consistent with the existing coverage scope,
+  which gates only pure modules.
 - No real network calls, consistent with the existing suite.
 
 ## Out of scope (YAGNI)
