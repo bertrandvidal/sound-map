@@ -1,0 +1,5 @@
+When using the app the session seems to expire quickly (less than 2 minutes) would there be a way to extend the life time so that the app can run in the background while the music is playing without being "logged out"?
+
+---
+
+Yeah let's do that. The http status is 401, error message "Access token missing" - I think this is because App.jsx sets the token to null when MapView's onSessionExpired is called. This in turn happens when MapView.jsx catches an error from fetching the currently playing song.
