@@ -24,4 +24,9 @@ describe("LoginButton", () => {
     render(<LoginButton error="access_denied" />);
     expect(screen.getByText(/access denied/i)).toBeInTheDocument();
   });
+
+  it("shows the login-failed message when token exchange failed", () => {
+    render(<LoginButton error="token_exchange_failed" />);
+    expect(screen.getByText(/login failed/i)).toBeInTheDocument();
+  });
 });
