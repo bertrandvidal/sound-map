@@ -16,6 +16,10 @@ describe("parseCookies", () => {
       other: "xyz",
     });
   });
+
+  it("falls back to the raw value when a cookie value is malformed", () => {
+    expect(parseCookies("sid=%")).toEqual({ sid: "%" });
+  });
 });
 
 describe("exchangeRefreshToken", () => {

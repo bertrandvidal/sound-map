@@ -8,7 +8,12 @@ export function parseCookies(header) {
     if (idx === -1) continue;
     const name = part.slice(0, idx).trim();
     if (!name) continue;
-    out[name] = decodeURIComponent(part.slice(idx + 1).trim());
+    const raw = part.slice(idx + 1).trim();
+    try {
+      out[name] = decodeURIComponent(raw);
+    } catch {
+      out[name] = raw;
+    }
   }
   return out;
 }
