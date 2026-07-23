@@ -1,0 +1,91 @@
+I want to add a UI element "on top" of the map. It should be situated in the top right corner of the window and remain there. It should be a rounded rectangle that displays: 
+- a play/pause button
+- a next song button
+- the song's artwork
+- the song's name - using '...' if the text is too long
+- the song's artist(s) - using '...' if the text is too long
+- the name of the artist's place of origin as returned by Nominatim
+- a playback progress bar (which is read only, cannot be used to seek in the song)
+
+Visually it should be similar to Spotify's dark theme. 
+Update the token's scope accordingly.
+
+---
+
+<task-notification>
+<task-id>adb10c2540847c965</task-id>
+<tool-use-id>toolu_01UGtxZfJFsGZHR9AYGc7ugj</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-bert-github-sound-map/939f5b88-8ee5-4ad1-8e16-cd6c32c75b69/tasks/adb10c2540847c965.output</output-file>
+<status>completed</status>
+<summary>Agent "Workstream A: spotify.js API" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Pre-commit hook (biome + full test suite) passed and the commit landed.
+
+## Report
+
+**Branch:** `now-playing-api`
+**Commit:** `1f4414b` — "Add Spotify player controls and widen now-playing payload"
+
+**Files changed (only the two in scope):**
+- `src/spotify.js`
+- `src/__tests__/spotify.test.js`
+
+**What changed:**
+1. **Scope** — added `user-modify-playback-state` to `SCOPE`; `buildAuthUrl` otherwise untouched.
+2. **Shared error helper** — added the module-level table-driven `spotifyError(response, overrides = {})` (401 → `TOKEN_EXPIRED`, 429 → `RATE_LIMITED:&lt;Retry-After ?? 5&gt;`, fallback `SPOTIFY_ERROR:&lt;status&gt;`), replacing the inline if/else chain.
+3. **`fetchCurrentlyPlaying`** — keeps the `204 → null` and missing-`item → null` returns, now uses the helper, and returns the widened contract shape: `trackName`, `artistName` (primary), `artistNames` (all joined, `null` if empty), `albumImageUrl`, `trackId`, `isPlaying`, `progressMs`, `durationMs`.
+4. **Player controls** — `playerCommand(method, command, token)` (204 → resolve; 403 → `PLAYBACK_UNAVAILABLE`, 404 → `NO_ACTIVE_DEVICE` via overrides) plus exported `play` (PUT play), `pause` (PUT pause), `skipToNext` (POST next).
+
+**Verification (all passed):**
+- `npx biome check .` — clean (29 files). One auto-format fix was applied to the test file's `stub` helper via `--write`.
+- `npx vitest run` — green, 55 tests / 9 files (16 in `spotify.test.js`).
+- Coverage for `src/spotify.js`: **`spotify.js | 97.43 stmts | 80 branch | 100 funcs | 96.66 lines`** — above the per-file gate (90 / 75 / 100). The only uncovered line is the module-load `CLIENT_ID` guard (line 3), which is pre-existing.
+
+**Integration notes for the merger:**
+- `fetchCurrentlyPlaying` is now an object-widening change — existing consumers reading `trackName` / `artistName` / `albumImageUrl` keep working; `artistName` is still the primary artist used for geo lookup. New fields are additive.
+- New named exports `play`, `pause`, `skipToNext` each take `(token)` and return a Promise that resolves `undefined` on success or rejects with the structured error strings above — the UI worktree should catch `TOKEN_EXPIRED`, `PLAYBACK_UNAVAILABLE`, `NO_ACTIVE_DEVICE`, `RATE_LIMITED:&lt;n&gt;`, `SPOTIFY_ERROR:&lt;status&gt;`.
+- No merge conflicts expected outside `src/spotify.js` / the test file; nothing else was touched. Not pushed, no PR opened.</result>
+<usage><subagent_tokens>35818</subagent_tokens><tool_uses>11</tool_uses><duration_ms>96406</duration_ms></usage>
+<worktree><worktreePath>/Users/bert/github/sound-map/.claude/worktrees/agent-adb10c2540847c965</worktreePath><worktreeBranch>worktree-agent-adb10c2540847c965</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a83550a4e6ef8c192</task-id>
+<tool-use-id>toolu_01AueWDNsDB4A6uZyj7S7Sqh</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-bert-github-sound-map/939f5b88-8ee5-4ad1-8e16-cd6c32c75b69/tasks/a83550a4e6ef8c192.output</output-file>
+<status>completed</status>
+<summary>Agent "Workstream B: NowPlayingCard UI" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The pre-commit hook (biome + tests) passed and the commit landed.
+
+## Summary
+
+Workstream B (Now Playing UI) is complete on branch **`now-playing-ui`**, commit **`764c7ae`**.
+
+### What was built
+- **`src/components/NowPlayingCard.jsx`** (new) — presentational card, imports nothing from `spotify.js`. Fixed top-right (`position:fixed, top:16, right:16, zIndex:1000`), Spotify dark palette, ~56px rounded album art, ellipsis-truncated track/artist lines inside `minWidth:0` flex children, a `📍 place` line, a read-only progress bar (filled div, no seek handlers), and inline-SVG play/pause + next buttons with `aria-label`s. Uses the specified anchor-ref + 500ms interval to interpolate progress smoothly between polls.
+- **`src/components/MapView.jsx`** (edit) — extracted the poll body into a reusable `syncNowPlaying()` (guarded by a `mountedRef`) plus a shared single-flight `refreshToken()`. Added `controlMessage` state and `handlePlayPause`/`handleNext` that call `pause`/`play`/`skipToNext`, clear the message on success, optimistically flip `isPlaying`, and re-sync immediately; on `TOKEN_EXPIRED` they reuse the refresh path, otherwise set `"Playback control not available"`. The card renders as a sibling of `&lt;LeafletMap&gt;` inside a `position:relative` container. The existing `classifyPollError` refresh/retry/guard behavior is preserved.
+- Tests added/updated for both files.
+
+### Verification (all green)
+- `npx biome check .` — clean
+- `npx vitest run` — 59 passed (10 files)
+- `npx vitest run --coverage` — above the floor: NowPlayingCard 100/78/100, MapView 95/72/88 (stmt/branch/func); global branches 77% &gt; 70%.
+
+### Integration notes for the merger
+- **Runtime dependency:** `MapView.jsx` now imports `play`, `pause`, `skipToNext` from `../spotify.js`. In this worktree those exports do **not** yet exist — tests mock the module so everything passes, but the app will only run correctly once Workstream A's `spotify.js` (providing those three exports) is merged. This is expected, not a bug.
+- One intentional `// biome-ignore lint/correctness/useExhaustiveDependencies` on the interpolation effect: `track.trackId` is kept as a dependency (per the plan) so the anchor resets on track change even if `progressMs` coincides; biome would otherwise flag it as extra.
+- I did not touch `src/spotify.js` or `src/__tests__/spotify.test.js`. No push, no PR.</result>
+<usage><subagent_tokens>56812</subagent_tokens><tool_uses>26</tool_uses><duration_ms>246417</duration_ms></usage>
+<worktree><worktreePath>/Users/bert/github/sound-map/.claude/worktrees/agent-a83550a4e6ef8c192</worktreePath><worktreeBranch>worktree-agent-a83550a4e6ef8c192</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+Mostly looks good. To be updated: 1. the progress bar should display "current / total time" 2. when clicking play/pause the button switches to the other format but then switches back likely because the local state is overwritten by what's retrieved from the API.
+
+---
+
+Move the "current / total time" to be on the same "line" as the progress bar. Ask me to confirm via manual test and if all good then you'll open a PR.
