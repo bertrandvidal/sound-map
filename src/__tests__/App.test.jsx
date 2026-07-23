@@ -9,7 +9,7 @@ vi.mock("../components/MapView.jsx", () => ({
     </button>
   ),
 }));
-vi.mock("../components/LoginButton.jsx", () => ({
+vi.mock("../components/LandingPage.jsx", () => ({
   default: ({ error }) => <div data-testid="login">{error ?? "login"}</div>,
 }));
 

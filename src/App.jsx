@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { refreshAccessToken } from "./auth.js";
-import LoginButton from "./components/LoginButton.jsx";
+import LandingPage from "./components/LandingPage.jsx";
 import MapView from "./components/MapView.jsx";
 
 export default function App() {
@@ -61,5 +61,5 @@ export default function App() {
     return <MapView token={token} onTokenExpired={handleTokenExpired} />;
   }
 
-  return <LoginButton error={error} />;
+  return <LandingPage error={error} />;
 }
