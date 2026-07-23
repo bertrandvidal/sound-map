@@ -1,0 +1,58 @@
+Read @docs/superpowers/specs/2026-07-23-vercel-deployment-design.md there have been changes to the code - see PR #4. Once you're up to date, review the spec to confirm it still works with the latest changes.
+
+---
+
+1. Go ahead and rebase vercel-deployment to catch up with main 2. Yes make this explicit in the plan so it's clear. Write the plan.
+
+---
+
+Let's go subagent. I also want the two following tasks to be handled on this branch. They should be done between task 6 and 7. 1. Any new files with logic must have test covering it, coverage gate should be disallow-list not specific per files. 2. When clicking on an album bubble the pop up info should have the same style as the "currently playing" overlay
+
+---
+
+<task-notification>
+<task-id>a748eba0528ff1a2f</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-bert-github-sound-map/7245fef0-4c7b-491c-b9d9-b042b00713be/tasks/a748eba0528ff1a2f.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement Task 3: cookie builders" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Status: Complete. Commit: `f811758` — "Cover clearSessionCookie secure:false branch". Test summary: 21/21 in auth.test.js, 95/95 full suite passing; server/auth.js branch coverage now 90.9%.</result>
+<usage><subagent_tokens>42936</subagent_tokens><tool_uses>7</tool_uses><duration_ms>40402</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a36b6ce8031725812</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-bert-github-sound-map/7245fef0-4c7b-491c-b9d9-b042b00713be/tasks/a36b6ce8031725812.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement Task 7: coverage gate" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Clean — only the pre-existing unrelated untracked file remains, which was there before this task started.
+
+Status: DONE
+Commit: e113a41 "Gate coverage on a universal strict per-file bar"
+Coverage: gate is GREEN — `npx vitest run --coverage` exits 0, no threshold errors; 366/376 stmts (97.34%), 134/156 branches (85.89%), 76/76 functions (100%); `npm test` 114/114 passing
+Concerns: `vi.restoreAllMocks()` doesn't reset `.mock.calls` history on plain `vi.fn()` instances from `vi.mock()` factories in `MapView.test.jsx` (pre-existing, not introduced here) — one new test had to use a before/after calls-length delta (matching an existing in-file precedent) instead of an absolute count; flagged in the report, not changed unilaterally
+Report: /Users/bert/github/sound-map/.superpowers/sdd/task-7-report.md (gitignored, local only — not part of the commit)</result>
+<usage><subagent_tokens>107449</subagent_tokens><tool_uses>38</tool_uses><duration_ms>287333</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>acdcd30251cfa2fd7</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-bert-github-sound-map/7245fef0-4c7b-491c-b9d9-b042b00713be/tasks/acdcd30251cfa2fd7.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement Task 8: album popup styling" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Status: Fixed and committed.
+
+Commit: `5854632` "Fix AlbumPopupCard emphasis to match NowPlayingCard"
+
+Test/coverage summary: 116/116 tests passing; `AlbumPopupCard.jsx` still 100% statements / 83.33% branches / 100% functions — coverage gate GREEN.</result>
+<usage><subagent_tokens>50007</subagent_tokens><tool_uses>8</tool_uses><duration_ms>35214</duration_ms></usage>
+</task-notification>
