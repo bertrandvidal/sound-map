@@ -93,3 +93,34 @@ export async function exchangeRefreshToken(
     refreshToken: data.refresh_token ?? refreshToken,
   };
 }
+
+export async function exchangeAuthCode(
+  code,
+  { clientId, clientSecret, redirectUri },
+) {
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
+    "base64",
+  );
+  const response = await fetch(SPOTIFY_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: redirectUri,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`AUTH_CODE_EXCHANGE_FAILED:${response.status}`);
+  }
+
+  const data = await response.json();
+  if (!data.refresh_token) {
+    throw new Error("AUTH_CODE_EXCHANGE_FAILED:no_refresh_token");
+  }
+  return { refreshToken: data.refresh_token };
+}

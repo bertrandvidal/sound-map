@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   COOKIE_NAME,
+  exchangeAuthCode,
   exchangeRefreshToken,
   openToken,
   parseCookies,
@@ -81,6 +82,53 @@ describe("exchangeRefreshToken", () => {
     await expect(
       exchangeRefreshToken("bad", { clientId: "id", clientSecret: "secret" }),
     ).rejects.toThrow("REFRESH_FAILED:400");
+  });
+});
+
+describe("exchangeAuthCode", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const CREDS = {
+    clientId: "id",
+    clientSecret: "secret",
+    redirectUri: "http://127.0.0.1:3000/callback",
+  };
+
+  it("returns the refresh token on a Spotify 200", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ refresh_token: "refresh-abc" }),
+      }),
+    );
+    const result = await exchangeAuthCode("auth-code", CREDS);
+    expect(result).toEqual({ refreshToken: "refresh-abc" });
+  });
+
+  it("throws when Spotify returns a non-200", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 400 }),
+    );
+    await expect(exchangeAuthCode("bad", CREDS)).rejects.toThrow(
+      "AUTH_CODE_EXCHANGE_FAILED:400",
+    );
+  });
+
+  it("throws when the response has no refresh token", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ access_token: "only-access" }),
+      }),
+    );
+    await expect(exchangeAuthCode("code", CREDS)).rejects.toThrow(
+      "AUTH_CODE_EXCHANGE_FAILED:no_refresh_token",
+    );
   });
 });
 
