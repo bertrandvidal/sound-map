@@ -1,0 +1,29 @@
+I want to rework the landing page so it's more inline with the Spotify dark theme look and feel. Let's talk about what the design should be.
+
+---
+
+Let's go with C
+
+---
+
+Yeah let's go with the visual approach
+
+---
+
+Let's go with C
+
+---
+
+I like the motion but I don't know if it convey the idea well. I feel like there should be a simplified map of the world, a few album bubbles (not moving) that are linked as if listening to a playlist would take you from one place to the other
+
+---
+
+Let's go with the dot-matrix but let's make the continents more defined, more visible.
+
+---
+
+Let's go with the dot-matrix but let's make the continents more defined, more visible. Let's also add a bubble in south america.
+
+---
+
+The orange dot makes it hard to read the word-mark (let's see if another color works best) also the login button is missing
