@@ -62,6 +62,9 @@ the **Production** environment:
       learn it, then set this and redeploy.
 - [ ] `FRONTEND_URL=https://<app>.vercel.app` — the app's own origin (the
       callback redirects here after setting the cookie).
+- [ ] `VITE_REDIRECT_URI=https://<app>.vercel.app/api/callback` — must equal
+      `REDIRECT_URI` above (same value; the client sends it to Spotify when
+      building the authorize URL, the server verifies it on token exchange).
 
 ## E. Spotify dashboard
 
