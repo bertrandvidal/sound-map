@@ -3,3 +3,7 @@ Read @docs/superpowers/specs/2026-07-23-vercel-deployment-design.md there have b
 ---
 
 1. Go ahead and rebase vercel-deployment to catch up with main 2. Yes make this explicit in the plan so it's clear. Write the plan.
+
+---
+
+Let's go subagent. I also want the two following tasks to be handled on this branch. They should be done between task 6 and 7. 1. Any new files with logic must have test covering it, coverage gate should be disallow-list not specific per files. 2. When clicking on an album bubble the pop up info should have the same style as the "currently playing" overlay
