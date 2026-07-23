@@ -23,7 +23,9 @@ export default function AlbumBubble({
     });
   }, [imageUrl, artistName]);
 
-  if (!location?.lat || !location?.lng) return null;
+  // Use == null (not truthiness) so a valid 0 coordinate — e.g. the Pacific
+  // "Unknown location" fallback at lat 0 — still renders the bubble.
+  if (location?.lat == null || location?.lng == null) return null;
 
   return (
     <Marker position={[location.lat, location.lng]} icon={icon}>
