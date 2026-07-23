@@ -1,0 +1,9 @@
+Resume SDD execution: verify the Task 8 emphasis-swap fix closed the Important finding, mark Task 8 complete, then continue to Task 9 (logout UI).
+
+---
+
+Go with 2, the entire:// remote will actually forward to GitHub so not a problem.
+
+---
+
+Let's do the deferred minors while I read the code
