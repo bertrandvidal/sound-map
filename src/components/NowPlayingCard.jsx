@@ -1,11 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-
-// Spotify-like dark palette
-const SURFACE = "#181818";
-const SURFACE_ALT = "#282828";
-const ACCENT = "#1DB954";
-const TEXT = "#fff";
-const MUTED = "#b3b3b3";
+import { ACCENT, MUTED, SURFACE, SURFACE_ALT, TEXT } from "../theme.js";
 
 function PlayIcon() {
   return (
