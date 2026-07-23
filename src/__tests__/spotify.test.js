@@ -20,6 +20,15 @@ describe("buildAuthUrl", () => {
     expect(url).toContain("client_id=test-client-id");
     expect(url).toContain(encodeURIComponent("http://127.0.0.1:3000/callback"));
   });
+
+  it("uses VITE_REDIRECT_URI when set (production)", () => {
+    vi.stubEnv("VITE_REDIRECT_URI", "https://app.vercel.app/api/callback");
+    const url = buildAuthUrl();
+    expect(url).toContain(
+      encodeURIComponent("https://app.vercel.app/api/callback"),
+    );
+    vi.unstubAllEnvs();
+  });
 });
 
 describe("fetchCurrentlyPlaying", () => {

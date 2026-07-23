@@ -1,7 +1,6 @@
 const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
 if (!CLIENT_ID)
   throw new Error("VITE_SPOTIFY_CLIENT_ID is not set — check your .env file");
-const REDIRECT_URI = "http://127.0.0.1:3000/callback";
 const SCOPE = "user-read-currently-playing user-modify-playback-state";
 
 const RATE_LIMITED_DEFAULT = "5";
@@ -22,10 +21,12 @@ function spotifyError(response, overrides = {}) {
 }
 
 export function buildAuthUrl() {
+  const redirectUri =
+    import.meta.env.VITE_REDIRECT_URI ?? "http://127.0.0.1:3000/callback";
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
     response_type: "code",
-    redirect_uri: REDIRECT_URI,
+    redirect_uri: redirectUri,
     scope: SCOPE,
   });
   return `https://accounts.spotify.com/authorize?${params}`;

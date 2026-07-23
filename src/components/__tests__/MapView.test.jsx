@@ -130,6 +130,25 @@ describe("MapView poll loop", () => {
     await waitFor(() => expect(skipToNext).toHaveBeenCalledWith("t"));
   });
 
+  it("swallows a resync error after a successful skip", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-card")).toBeInTheDocument(),
+    );
+    const callsBeforeSkip = fetchCurrentlyPlaying.mock.calls.length;
+    fetchCurrentlyPlaying.mockRejectedValueOnce(new Error("SPOTIFY_ERROR:500")); // resync fired by handleNext after the skip succeeds
+    fireEvent.click(screen.getByText("next"));
+    await waitFor(() => expect(skipToNext).toHaveBeenCalledWith("t"));
+    // the follow-up resync's rejection is swallowed: no crash, no error status
+    await waitFor(() =>
+      expect(fetchCurrentlyPlaying.mock.calls.length).toBeGreaterThan(
+        callsBeforeSkip,
+      ),
+    );
+    expect(screen.getByTestId("now-playing-card")).toBeInTheDocument();
+  });
+
   it("shows a control message when playback control fails", async () => {
     fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
     pause.mockRejectedValueOnce(new Error("PLAYBACK_UNAVAILABLE"));
@@ -161,5 +180,17 @@ describe("MapView poll loop", () => {
         screen.getByText("Something went wrong. Check the console."),
       ).toBeInTheDocument(),
     );
+  });
+
+  it("refreshes the token when a control action returns TOKEN_EXPIRED", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    pause.mockRejectedValueOnce(new Error("TOKEN_EXPIRED"));
+    const onTokenExpired = vi.fn().mockResolvedValue(undefined);
+    render(<MapView token="t" onTokenExpired={onTokenExpired} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-card")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByText("play-pause"));
+    await waitFor(() => expect(onTokenExpired).toHaveBeenCalled());
   });
 });

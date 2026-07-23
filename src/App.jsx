@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { refreshAccessToken } from "./auth.js";
+import { logout, refreshAccessToken } from "./auth.js";
 import LandingPage from "./components/LandingPage.jsx";
+import LogoutButton from "./components/LogoutButton.jsx";
 import MapView from "./components/MapView.jsx";
+import { devLog } from "./devLog.js";
 
 export default function App() {
   const [token, setToken] = useState(null);
@@ -21,16 +23,15 @@ export default function App() {
   // Bootstrap: exchange the session cookie for an access token.
   useEffect(() => {
     let cancelled = false;
-    if (import.meta.env.DEV) console.info("[app] bootstrapping session");
+    devLog("[app] bootstrapping session");
     refreshAccessToken()
       .then((t) => {
         if (cancelled) return;
-        if (import.meta.env.DEV) console.info("[app] session restored");
+        devLog("[app] session restored");
         setToken(t);
       })
       .catch(() => {
-        if (import.meta.env.DEV)
-          console.info("[app] no active session, showing login");
+        devLog("[app] no active session, showing login");
       })
       .finally(() => {
         if (!cancelled) setBooting(false);
@@ -42,23 +43,34 @@ export default function App() {
 
   // A poll hit a 401: try to refresh; only truly log out if that fails.
   const handleTokenExpired = useCallback(async () => {
-    if (import.meta.env.DEV) console.info("[app] token expired, refreshing");
+    devLog("[app] token expired, refreshing");
     try {
       const t = await refreshAccessToken();
-      if (import.meta.env.DEV) console.info("[app] token refreshed");
+      devLog("[app] token refreshed");
       setToken(t);
     } catch {
-      if (import.meta.env.DEV)
-        console.info("[app] refresh failed, logging out");
+      devLog("[app] refresh failed, logging out");
       setToken(null);
       setError("session_expired");
     }
   }, []);
 
+  const handleLogout = useCallback(async () => {
+    devLog("[app] logging out");
+    await logout();
+    setToken(null);
+    setError(null);
+  }, []);
+
   if (booting) return null;
 
   if (token) {
-    return <MapView token={token} onTokenExpired={handleTokenExpired} />;
+    return (
+      <>
+        <MapView token={token} onTokenExpired={handleTokenExpired} />
+        <LogoutButton onLogout={handleLogout} />
+      </>
+    );
   }
 
   return <LandingPage error={error} />;

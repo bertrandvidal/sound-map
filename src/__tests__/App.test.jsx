@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../auth.js", () => ({ refreshAccessToken: vi.fn() }));
+vi.mock("../auth.js", () => ({ refreshAccessToken: vi.fn(), logout: vi.fn() }));
 vi.mock("../components/MapView.jsx", () => ({
   default: ({ onTokenExpired }) => (
     <button type="button" data-testid="map" onClick={onTokenExpired}>
@@ -14,7 +14,7 @@ vi.mock("../components/LandingPage.jsx", () => ({
 }));
 
 import App from "../App.jsx";
-import { refreshAccessToken } from "../auth.js";
+import { logout, refreshAccessToken } from "../auth.js";
 
 describe("App", () => {
   beforeEach(() => {
@@ -50,6 +50,27 @@ describe("App", () => {
     const map = await screen.findByTestId("map");
     refreshAccessToken.mockRejectedValueOnce(new Error("SESSION_EXPIRED"));
     fireEvent.click(map);
+    expect(await screen.findByTestId("login")).toBeInTheDocument();
+  });
+
+  it("surfaces an OAuth error from the callback and cleans the URL", async () => {
+    window.history.replaceState({}, "", "/?error=access_denied");
+    const replaceSpy = vi.spyOn(window.history, "replaceState");
+    refreshAccessToken.mockRejectedValue(new Error("SESSION_EXPIRED"));
+    render(<App />);
+    expect(await screen.findByTestId("login")).toHaveTextContent(
+      "access_denied",
+    );
+    expect(replaceSpy).toHaveBeenCalledWith({}, "", "/");
+  });
+
+  it("logs out: clears the session and returns to the landing page", async () => {
+    refreshAccessToken.mockResolvedValueOnce("token-1"); // bootstrap
+    logout.mockResolvedValue(undefined);
+    render(<App />);
+    await screen.findByTestId("map");
+    fireEvent.click(screen.getByRole("button", { name: "Log out" }));
+    await waitFor(() => expect(logout).toHaveBeenCalledTimes(1));
     expect(await screen.findByTestId("login")).toBeInTheDocument();
   });
 });
