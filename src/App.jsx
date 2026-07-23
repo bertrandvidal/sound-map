@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { refreshAccessToken } from "./auth.js";
+import { logout, refreshAccessToken } from "./auth.js";
 import LandingPage from "./components/LandingPage.jsx";
+import LogoutButton from "./components/LogoutButton.jsx";
 import MapView from "./components/MapView.jsx";
 import { devLog } from "./devLog.js";
 
@@ -54,10 +55,22 @@ export default function App() {
     }
   }, []);
 
+  const handleLogout = useCallback(async () => {
+    devLog("[app] logging out");
+    await logout();
+    setToken(null);
+    setError(null);
+  }, []);
+
   if (booting) return null;
 
   if (token) {
-    return <MapView token={token} onTokenExpired={handleTokenExpired} />;
+    return (
+      <>
+        <MapView token={token} onTokenExpired={handleTokenExpired} />
+        <LogoutButton onLogout={handleLogout} />
+      </>
+    );
   }
 
   return <LandingPage error={error} />;

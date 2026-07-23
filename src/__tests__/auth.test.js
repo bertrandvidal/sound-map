@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { refreshAccessToken } from "../auth.js";
+import { logout, refreshAccessToken } from "../auth.js";
 
 describe("refreshAccessToken", () => {
   beforeEach(() => {
@@ -38,5 +38,21 @@ describe("refreshAccessToken", () => {
       "/api/refresh",
       expect.objectContaining({ method: "POST", credentials: "include" }),
     );
+  });
+});
+
+describe("logout", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("POSTs to /api/logout including credentials", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    await logout();
+    expect(fetchMock).toHaveBeenCalledWith("/api/logout", {
+      method: "POST",
+      credentials: "include",
+    });
   });
 });

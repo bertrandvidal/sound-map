@@ -10,3 +10,7 @@ export async function refreshAccessToken() {
   const data = await response.json();
   return data.access_token;
 }
+
+export async function logout() {
+  await fetch("/api/logout", { method: "POST", credentials: "include" });
+}
