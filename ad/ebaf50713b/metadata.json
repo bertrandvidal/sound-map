@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "adebaf50713b",
+  "strategy": "manual-commit",
+  "branch": "now-playing-card",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/components/MapView.jsx",
+    "src/components/NowPlayingCard.jsx",
+    "src/components/__tests__/NowPlayingCard.test.jsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ad/ebaf50713b/0/metadata.json",
+      "transcript": "/ad/ebaf50713b/0/full.jsonl",
+      "compact_transcript": "/ad/ebaf50713b/0/transcript.jsonl",
+      "content_hash": "/ad/ebaf50713b/0/content_hash.txt",
+      "prompt": "/ad/ebaf50713b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 69,
+    "cache_creation_tokens": 118060,
+    "cache_read_tokens": 3072668,
+    "output_tokens": 59865,
+    "api_call_count": 35
+  }
+}

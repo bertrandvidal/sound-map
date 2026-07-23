@@ -1,0 +1,86 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "adebaf50713b",
+  "session_id": "939f5b88-8ee5-4ad1-8e16-cd6c32c75b69",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-23T15:39:30.890961Z",
+  "branch": "now-playing-card",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/components/MapView.jsx",
+    "src/components/NowPlayingCard.jsx",
+    "src/components/__tests__/NowPlayingCard.test.jsx"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "8c74bf7d1df1",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 69,
+    "cache_creation_tokens": 118060,
+    "cache_read_tokens": 3072668,
+    "output_tokens": 59865,
+    "api_call_count": 35
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01GjArtz8BRGWvjFRu5vDY2o",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:dispatching-parallel-agents"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "8c74bf7d1df1",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 86,
+        "end": 87,
+        "entry_ids": [
+          "867c4ded-21fd-438e-8227-aa6b2653441d"
+        ],
+        "tool_use_id": "toolu_01GjArtz8BRGWvjFRu5vDY2o"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01GjArtz8BRGWvjFRu5vDY2o"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:dispatching-parallel-agents",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-23T15:39:30.865293Z",
+    "agent_lines": 516,
+    "agent_removed": 42,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 516,
+    "total_lines_changed": 558,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 26,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 26
+      }
+    }
+  ]
+}
