@@ -40,10 +40,10 @@ export default function AlbumPopupCard({
       )}
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ fontWeight: 700, fontSize: 15, ...ellipsis }}>
-          {artistName}
+          {trackName}
         </div>
         <div style={{ color: MUTED, fontSize: 13, ...ellipsis }}>
-          {trackName}
+          {artistName}
         </div>
         <div style={{ color: MUTED, fontSize: 12, marginTop: 2, ...ellipsis }}>
           📍 {placeName ?? "Unknown location"}
