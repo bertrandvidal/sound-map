@@ -3,7 +3,7 @@
   "checkpoint_id": "73b36ff65089",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 7,
+  "checkpoints_count": 8,
   "files_touched": [
     ".gitignore"
   ],
@@ -21,6 +21,13 @@
       "compact_transcript": "/73/b36ff65089/1/transcript.jsonl",
       "content_hash": "/73/b36ff65089/1/content_hash.txt",
       "prompt": "/73/b36ff65089/1/prompt.txt"
+    },
+    {
+      "metadata": "/73/b36ff65089/2/metadata.json",
+      "transcript": "/73/b36ff65089/2/full.jsonl",
+      "compact_transcript": "/73/b36ff65089/2/transcript.jsonl",
+      "content_hash": "/73/b36ff65089/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
