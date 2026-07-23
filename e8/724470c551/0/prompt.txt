@@ -1,0 +1,1 @@
+The last 2 commits shouldn't be made on `main` as we want all changes to go through PRs. Fix it by creating an appropriately named branch that will be used for the implementation as well. Also add to CLAUDE.md that no commits should be made on 'main', add that to a commit on that same branch
