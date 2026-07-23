@@ -1,17 +1,51 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../geo.js", () => ({
   lookupArtistLocation: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("../../spotify.js", () => ({ fetchCurrentlyPlaying: vi.fn() }));
+vi.mock("../../spotify.js", () => ({
+  fetchCurrentlyPlaying: vi.fn(),
+  play: vi.fn().mockResolvedValue(undefined),
+  pause: vi.fn().mockResolvedValue(undefined),
+  skipToNext: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("../LeafletMap.jsx", () => ({
   default: () => <div data-testid="leaflet-map" />,
 }));
+vi.mock("../NowPlayingCard.jsx", () => ({
+  default: ({ onPlayPause, onNext, controlMessage }) => (
+    <div data-testid="now-playing-card">
+      <button type="button" onClick={onPlayPause}>
+        play-pause
+      </button>
+      <button type="button" onClick={onNext}>
+        next
+      </button>
+      {controlMessage ? <span>{controlMessage}</span> : null}
+    </div>
+  ),
+}));
 
 import { lookupArtistLocation } from "../../geo.js";
-import { fetchCurrentlyPlaying } from "../../spotify.js";
+import {
+  fetchCurrentlyPlaying,
+  pause,
+  play,
+  skipToNext,
+} from "../../spotify.js";
 import MapView from "../MapView.jsx";
+
+const PLAYING_TRACK = {
+  artistName: "Radiohead",
+  artistNames: "Radiohead",
+  trackName: "Idioteque",
+  albumImageUrl: "https://example.com/cover.jpg",
+  trackId: "track-1",
+  isPlaying: true,
+  progressMs: 1000,
+  durationMs: 300_000,
+};
 
 describe("MapView poll loop", () => {
   beforeEach(() => {
@@ -59,15 +93,56 @@ describe("MapView poll loop", () => {
   });
 
   it("looks up the artist and renders the map when a track is playing", async () => {
-    fetchCurrentlyPlaying.mockResolvedValue({
-      artistName: "Radiohead",
-      trackName: "Idioteque",
-    });
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
     render(<MapView token="t" onTokenExpired={vi.fn()} />);
     await waitFor(() =>
       expect(screen.getByTestId("leaflet-map")).toBeInTheDocument(),
     );
     expect(lookupArtistLocation).toHaveBeenCalledWith("Radiohead");
+  });
+
+  it("renders the now-playing card once a track is playing", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-card")).toBeInTheDocument(),
+    );
+  });
+
+  it("pauses via the control handler when the track is playing", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-card")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByText("play-pause"));
+    await waitFor(() => expect(pause).toHaveBeenCalledWith("t"));
+    expect(play).not.toHaveBeenCalled();
+  });
+
+  it("skips to next via the control handler", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-card")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByText("next"));
+    await waitFor(() => expect(skipToNext).toHaveBeenCalledWith("t"));
+  });
+
+  it("shows a control message when playback control fails", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    pause.mockRejectedValueOnce(new Error("PLAYBACK_UNAVAILABLE"));
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-card")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByText("play-pause"));
+    await waitFor(() =>
+      expect(
+        screen.getByText("Playback control not available"),
+      ).toBeInTheDocument(),
+    );
   });
 
   it("shows the idle message when nothing is playing", async () => {
