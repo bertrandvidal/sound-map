@@ -1,10 +1,4 @@
-import { MUTED, TEXT } from "../theme.js";
-
-const ellipsis = {
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-};
+import { ellipsis, MUTED, TEXT } from "../theme.js";
 
 export default function AlbumPopupCard({
   imageUrl,

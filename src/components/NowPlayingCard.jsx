@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { ACCENT, MUTED, SURFACE, SURFACE_ALT, TEXT } from "../theme.js";
+import {
+  ACCENT,
+  ellipsis,
+  MUTED,
+  overlayCardStyle,
+  SURFACE_ALT,
+  TEXT,
+} from "../theme.js";
 
 function PlayIcon() {
   return (
@@ -24,12 +31,6 @@ function NextIcon() {
     </svg>
   );
 }
-
-const ellipsis = {
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-};
 
 // Milliseconds -> "m:ss" (e.g. 83000 -> "1:23").
 function formatTime(ms) {
@@ -90,12 +91,8 @@ export default function NowPlayingCard({
         zIndex: 1000,
         width: 320,
         boxSizing: "border-box",
-        background: SURFACE,
-        color: TEXT,
-        borderRadius: 12,
         padding: 12,
-        boxShadow: "0 4px 24px rgba(0,0,0,0.5)",
-        fontFamily: "sans-serif",
+        ...overlayCardStyle,
       }}
     >
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>

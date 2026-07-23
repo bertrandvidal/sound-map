@@ -46,28 +46,24 @@ export function openToken(sealed) {
   ]).toString("utf8");
 }
 
-export function buildSessionCookie(sealed, { secure }) {
+function cookieAttrs(nameValue, maxAge, secure) {
   const attrs = [
-    `${COOKIE_NAME}=${sealed}`,
+    nameValue,
     "HttpOnly",
     "SameSite=Lax",
     "Path=/",
-    `Max-Age=${COOKIE_MAX_AGE}`,
+    `Max-Age=${maxAge}`,
   ];
   if (secure) attrs.push("Secure");
   return attrs.join("; ");
 }
 
+export function buildSessionCookie(sealed, { secure }) {
+  return cookieAttrs(`${COOKIE_NAME}=${sealed}`, COOKIE_MAX_AGE, secure);
+}
+
 export function clearSessionCookie({ secure }) {
-  const attrs = [
-    `${COOKIE_NAME}=`,
-    "HttpOnly",
-    "SameSite=Lax",
-    "Path=/",
-    "Max-Age=0",
-  ];
-  if (secure) attrs.push("Secure");
-  return attrs.join("; ");
+  return cookieAttrs(`${COOKIE_NAME}=`, 0, secure);
 }
 
 export function parseCookies(header) {
@@ -88,24 +84,28 @@ export function parseCookies(header) {
   return out;
 }
 
-export async function exchangeRefreshToken(
-  refreshToken,
-  { clientId, clientSecret },
-) {
+async function postTokenRequest(params, { clientId, clientSecret }) {
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
     "base64",
   );
-  const response = await fetch(SPOTIFY_TOKEN_URL, {
+  return fetch(SPOTIFY_TOKEN_URL, {
     method: "POST",
     headers: {
       Authorization: `Basic ${credentials}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-    }),
+    body: new URLSearchParams(params),
   });
+}
+
+export async function exchangeRefreshToken(
+  refreshToken,
+  { clientId, clientSecret },
+) {
+  const response = await postTokenRequest(
+    { grant_type: "refresh_token", refresh_token: refreshToken },
+    { clientId, clientSecret },
+  );
 
   if (!response.ok) {
     throw new Error(`REFRESH_FAILED:${response.status}`);
@@ -123,21 +123,10 @@ export async function exchangeAuthCode(
   code,
   { clientId, clientSecret, redirectUri },
 ) {
-  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
-    "base64",
+  const response = await postTokenRequest(
+    { grant_type: "authorization_code", code, redirect_uri: redirectUri },
+    { clientId, clientSecret },
   );
-  const response = await fetch(SPOTIFY_TOKEN_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${credentials}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      grant_type: "authorization_code",
-      code,
-      redirect_uri: redirectUri,
-    }),
-  });
 
   if (!response.ok) {
     throw new Error(`AUTH_CODE_EXCHANGE_FAILED:${response.status}`);
