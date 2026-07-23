@@ -133,33 +133,40 @@ export default function NowPlayingCard({
         </div>
       </div>
 
-      {/* Read-only progress bar — purely visual, no seek handlers */}
+      {/* Read-only progress bar + time on one row — bar is purely visual, no seek handlers */}
       <div
         style={{
           marginTop: 12,
-          height: 4,
-          borderRadius: 2,
-          background: SURFACE_ALT,
-          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
         }}
       >
         <div
-          data-testid="progress-fill"
-          style={{ width: `${pct}%`, height: "100%", background: ACCENT }}
-        />
-      </div>
-
-      <div
-        data-testid="progress-time"
-        style={{
-          marginTop: 4,
-          color: MUTED,
-          fontSize: 11,
-          textAlign: "right",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {formatTime(displayMs)} / {formatTime(track.durationMs)}
+          style={{
+            flex: 1,
+            height: 4,
+            borderRadius: 2,
+            background: SURFACE_ALT,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            data-testid="progress-fill"
+            style={{ width: `${pct}%`, height: "100%", background: ACCENT }}
+          />
+        </div>
+        <div
+          data-testid="progress-time"
+          style={{
+            color: MUTED,
+            fontSize: 11,
+            whiteSpace: "nowrap",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {formatTime(displayMs)} / {formatTime(track.durationMs)}
+        </div>
       </div>
 
       <div
