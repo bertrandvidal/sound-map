@@ -58,6 +58,8 @@ Tests use **Vitest** with `jsdom` environment. All HTTP calls are mocked via `vi
 
 ## Git commits
 
+**Never commit directly to `main`.** All changes go through a feature branch and a PR. Create an appropriately-named branch (lowercase, digits, and hyphens only — no type/prefix notation) before your first commit, and open a PR to merge it into `main`.
+
 Follow the template at `~/.git-template.txt`: each commit message should have **Why**, **How**, and **Tests** sections.
 
 ## Dev workflow
