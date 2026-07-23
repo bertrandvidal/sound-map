@@ -1,0 +1,19 @@
+/* Match the Spotify-dark NowPlayingCard (see src/theme.js). */
+.leaflet-popup-content-wrapper {
+  background: #181818; /* SURFACE */
+  color: #fff; /* TEXT */
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+.leaflet-popup-content {
+  margin: 0; /* AlbumPopupCard owns its own padding */
+}
+
+.leaflet-popup-tip {
+  background: #181818; /* SURFACE — match the wrapper */
+}
+
+.leaflet-popup-close-button {
+  color: #b3b3b3; /* MUTED */
+}

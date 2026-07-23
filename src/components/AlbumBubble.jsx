@@ -1,6 +1,8 @@
 import L from "leaflet";
 import { useMemo } from "react";
 import { Marker, Popup } from "react-leaflet";
+import "./albumPopup.css";
+import AlbumPopupCard from "./AlbumPopupCard.jsx";
 
 export default function AlbumBubble({
   location,
@@ -30,11 +32,12 @@ export default function AlbumBubble({
   return (
     <Marker position={[location.lat, location.lng]} icon={icon}>
       <Popup>
-        <strong>{artistName}</strong>
-        <br />
-        {trackName}
-        <br />
-        <em>{location.placeName}</em>
+        <AlbumPopupCard
+          imageUrl={imageUrl}
+          trackName={trackName}
+          artistName={artistName}
+          placeName={location.placeName}
+        />
       </Popup>
     </Marker>
   );
