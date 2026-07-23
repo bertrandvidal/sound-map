@@ -16,52 +16,27 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary", "json"],
-      include: ["src/**/*.{js,jsx}", "server/**/*.js"],
+      include: ["src/**/*.{js,jsx}", "server/**/*.js", "api/**/*.js"],
+      // Disallow-list: the ONLY files exempt from the strict per-file bar below.
+      // Everything else — including any NEW file — must meet the bar. Do not add
+      // a file here to make coverage pass; if a file can't be tested, ask first.
       exclude: [
         "**/__tests__/**",
         "**/*.test.{js,jsx}",
         "src/test/setup.js",
-        "src/main.jsx", // React DOM entry point (createRoot+render); no logic to test
-        "server/index.js", // process entry point (env check + listen); logic lives in server/app.js
+        "src/main.jsx", // React DOM entry point (createRoot+render); no logic
+        "server/index.js", // process entry point (env check + listen)
         "src/components/LeafletMap.jsx", // react-leaflet wrapper; needs real canvas/map sizing jsdom lacks
-        "src/components/AlbumBubble.jsx", // builds a Leaflet divIcon; same canvas/DOM constraint
+        "src/components/AlbumBubble.jsx", // builds a Leaflet divIcon + Popup; same canvas/DOM constraint
       ],
       thresholds: {
-        // Global floor across every included file (components + app.js keep this realistic).
-        statements: 80,
-        branches: 70,
-        functions: 85,
-        // Pure-logic modules held to the strict bar, each file individually.
-        "src/geo.js": {
-          statements: 90,
-          branches: 75,
-          functions: 100,
-          perFile: true,
-        },
-        "src/spotify.js": {
-          statements: 90,
-          branches: 75,
-          functions: 100,
-          perFile: true,
-        },
-        "src/pollError.js": {
-          statements: 90,
-          branches: 75,
-          functions: 100,
-          perFile: true,
-        },
-        "src/auth.js": {
-          statements: 90,
-          branches: 75,
-          functions: 100,
-          perFile: true,
-        },
-        "server/auth.js": {
-          statements: 90,
-          branches: 75,
-          functions: 100,
-          perFile: true,
-        },
+        // One strict bar, applied to every included file individually. New
+        // logic files are gated automatically — no per-file allow-list to keep
+        // in sync.
+        perFile: true,
+        statements: 90,
+        branches: 75,
+        functions: 100,
       },
     },
   },

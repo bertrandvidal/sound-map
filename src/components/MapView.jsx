@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { devLog } from "../devLog.js";
 import { lookupArtistLocation } from "../geo.js";
 import { classifyPollError } from "../pollError.js";
 import { fetchCurrentlyPlaying, pause, play, skipToNext } from "../spotify.js";
@@ -32,7 +33,7 @@ export default function MapView({ token, onTokenExpired }) {
     if (!mountedRef.current) return;
 
     if (!current) {
-      if (import.meta.env.DEV) console.info("[poll] nothing playing");
+      devLog("[poll] nothing playing");
       setStatus("idle");
       return;
     }
@@ -40,17 +41,11 @@ export default function MapView({ token, onTokenExpired }) {
     // update track immediately; location catches up asynchronously
     setTrack(current);
     setStatus("playing");
-    if (import.meta.env.DEV) {
-      console.info(
-        `[poll] now playing: ${current.artistName} – ${current.trackName}`,
-      );
-    }
+    devLog(`[poll] now playing: ${current.artistName} – ${current.trackName}`);
 
     if (current.artistName !== lastArtistRef.current) {
       lastArtistRef.current = current.artistName;
-      if (import.meta.env.DEV) {
-        console.info(`[poll] artist changed, looking up ${current.artistName}`);
-      }
+      devLog(`[poll] artist changed, looking up ${current.artistName}`);
       const loc = await lookupArtistLocation(current.artistName);
       if (mountedRef.current) setLocation(loc ?? PACIFIC_FALLBACK);
     }
@@ -61,7 +56,7 @@ export default function MapView({ token, onTokenExpired }) {
   const refreshToken = useCallback(async () => {
     if (refreshingRef.current) return;
     refreshingRef.current = true;
-    if (import.meta.env.DEV) console.info("[poll] token expired, refreshing");
+    devLog("[poll] token expired, refreshing");
     try {
       await onTokenExpired();
     } finally {
@@ -84,9 +79,7 @@ export default function MapView({ token, onTokenExpired }) {
           return;
         }
         if (action.type === "retry") {
-          if (import.meta.env.DEV) {
-            console.info(`[poll] rate limited, retrying in ${action.seconds}s`);
-          }
+          devLog(`[poll] rate limited, retrying in ${action.seconds}s`);
           // safe to schedule even near unmount: poll() checks cancelled at the top
           setTimeout(poll, action.seconds * 1000);
           return;

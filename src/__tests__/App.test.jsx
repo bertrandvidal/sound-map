@@ -52,4 +52,15 @@ describe("App", () => {
     fireEvent.click(map);
     expect(await screen.findByTestId("login")).toBeInTheDocument();
   });
+
+  it("surfaces an OAuth error from the callback and cleans the URL", async () => {
+    window.history.replaceState({}, "", "/?error=access_denied");
+    const replaceSpy = vi.spyOn(window.history, "replaceState");
+    refreshAccessToken.mockRejectedValue(new Error("SESSION_EXPIRED"));
+    render(<App />);
+    expect(await screen.findByTestId("login")).toHaveTextContent(
+      "access_denied",
+    );
+    expect(replaceSpy).toHaveBeenCalledWith({}, "", "/");
+  });
 });

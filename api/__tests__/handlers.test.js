@@ -58,6 +58,18 @@ describe("api/callback", () => {
     await callback({ query: { error: "access_denied" } }, res);
     expect(res.redirected).toBe("https://app.vercel.app?error=access_denied");
   });
+
+  it("redirects with token_exchange_failed when the code exchange throws", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 400 }),
+    );
+    const res = mockRes();
+    await callback({ query: { code: "bad" } }, res);
+    expect(res.redirected).toBe(
+      "https://app.vercel.app?error=token_exchange_failed",
+    );
+  });
 });
 
 describe("api/refresh", () => {
