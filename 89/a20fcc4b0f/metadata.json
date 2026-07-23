@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "89a20fcc4b0f",
+  "strategy": "manual-commit",
+  "branch": "now-playing-card",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/components/AlbumBubble.jsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/89/a20fcc4b0f/0/metadata.json",
+      "transcript": "/89/a20fcc4b0f/0/full.jsonl",
+      "compact_transcript": "/89/a20fcc4b0f/0/transcript.jsonl",
+      "content_hash": "/89/a20fcc4b0f/0/content_hash.txt",
+      "prompt": "/89/a20fcc4b0f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 6588,
+    "cache_read_tokens": 550791,
+    "output_tokens": 6096,
+    "api_call_count": 4
+  }
+}
