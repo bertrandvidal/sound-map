@@ -203,4 +203,10 @@ describe("clearSessionCookie", () => {
     expect(cookie).toMatch(/Max-Age=0/);
     expect(cookie).toMatch(/Secure/);
   });
+
+  it("omits Secure when secure is false", () => {
+    const cookie = clearSessionCookie({ secure: false });
+    expect(cookie).not.toMatch(/Secure/);
+    expect(cookie).toMatch(/Max-Age=0/);
+  });
 });
