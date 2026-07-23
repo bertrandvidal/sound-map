@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { exchangeRefreshToken, parseCookies } from "../auth.js";
+import {
+  COOKIE_NAME,
+  exchangeRefreshToken,
+  openToken,
+  parseCookies,
+  sealToken,
+} from "../auth.js";
 
 describe("parseCookies", () => {
   it("returns an empty object for a missing header", () => {
@@ -75,5 +81,49 @@ describe("exchangeRefreshToken", () => {
     await expect(
       exchangeRefreshToken("bad", { clientId: "id", clientSecret: "secret" }),
     ).rejects.toThrow("REFRESH_FAILED:400");
+  });
+});
+
+describe("sealToken / openToken", () => {
+  beforeEach(() => {
+    process.env.COOKIE_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
+  });
+
+  it("round-trips a plaintext token", () => {
+    const sealed = sealToken("refresh-abc");
+    expect(sealed).not.toContain("refresh-abc");
+    expect(openToken(sealed)).toBe("refresh-abc");
+  });
+
+  it("produces a different sealed blob each call (random IV)", () => {
+    expect(sealToken("same")).not.toBe(sealToken("same"));
+  });
+
+  it("throws when the ciphertext is tampered with", () => {
+    const sealed = sealToken("refresh-abc");
+    const bytes = Buffer.from(sealed, "base64url");
+    bytes[bytes.length - 1] ^= 0xff; // flip last byte of ciphertext
+    const tampered = bytes.toString("base64url");
+    expect(() => openToken(tampered)).toThrow();
+  });
+
+  it("throws when opened with a different key", () => {
+    const sealed = sealToken("refresh-abc");
+    process.env.COOKIE_ENCRYPTION_KEY = Buffer.alloc(32, 9).toString("base64");
+    expect(() => openToken(sealed)).toThrow();
+  });
+
+  it("throws when the key is missing", () => {
+    process.env.COOKIE_ENCRYPTION_KEY = "";
+    expect(() => sealToken("x")).toThrow(/COOKIE_ENCRYPTION_KEY/);
+  });
+
+  it("throws when the key does not decode to 32 bytes", () => {
+    process.env.COOKIE_ENCRYPTION_KEY = Buffer.alloc(16, 1).toString("base64");
+    expect(() => sealToken("x")).toThrow(/32 bytes/);
+  });
+
+  it("exposes the unified cookie name", () => {
+    expect(COOKIE_NAME).toBe("rt");
   });
 });
