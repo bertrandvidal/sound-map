@@ -1,0 +1,74 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "40a0c45eae56",
+  "session_id": "0d14c314-9a54-48ad-8939-06a1821f841e",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-23T16:54:14.089644Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/specs/2026-07-23-vercel-deployment-design.md"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "2af2f0c8b700",
+  "checkpoint_transcript_start": 135,
+  "transcript_lines_at_start": 135,
+  "compact_transcript_start": 30,
+  "token_usage": {
+    "input_tokens": 2,
+    "cache_creation_tokens": 918,
+    "cache_read_tokens": 67164,
+    "output_tokens": 421,
+    "api_call_count": 1
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01B2sYHsKCmbJcmxQJCJfPMN",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:brainstorming"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "2af2f0c8b700",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 22,
+        "end": 23,
+        "entry_ids": [
+          "5665cb53-88b9-4ef6-b04b-d7bcde1b647b"
+        ],
+        "tool_use_id": "toolu_01B2sYHsKCmbJcmxQJCJfPMN"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01B2sYHsKCmbJcmxQJCJfPMN"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:brainstorming",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-23T16:54:14.077069Z",
+    "agent_lines": 179,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 179,
+    "total_lines_changed": 179,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}

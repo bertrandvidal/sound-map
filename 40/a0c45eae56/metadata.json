@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "40a0c45eae56",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/specs/2026-07-23-vercel-deployment-design.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/40/a0c45eae56/0/metadata.json",
+      "transcript": "/40/a0c45eae56/0/full.jsonl",
+      "compact_transcript": "/40/a0c45eae56/0/transcript.jsonl",
+      "content_hash": "/40/a0c45eae56/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2,
+    "cache_creation_tokens": 918,
+    "cache_read_tokens": 67164,
+    "output_tokens": 421,
+    "api_call_count": 1
+  }
+}
