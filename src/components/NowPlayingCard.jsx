@@ -37,6 +37,14 @@ const ellipsis = {
   textOverflow: "ellipsis",
 };
 
+// Milliseconds -> "m:ss" (e.g. 83000 -> "1:23").
+function formatTime(ms) {
+  const totalSeconds = Math.max(0, Math.floor((ms ?? 0) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 const iconButton = {
   display: "flex",
   alignItems: "center",
@@ -139,6 +147,19 @@ export default function NowPlayingCard({
           data-testid="progress-fill"
           style={{ width: `${pct}%`, height: "100%", background: ACCENT }}
         />
+      </div>
+
+      <div
+        data-testid="progress-time"
+        style={{
+          marginTop: 4,
+          color: MUTED,
+          fontSize: 11,
+          textAlign: "right",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {formatTime(displayMs)} / {formatTime(track.durationMs)}
       </div>
 
       <div

@@ -102,6 +102,21 @@ describe("NowPlayingCard", () => {
     expect(screen.getByTestId("progress-fill")).toBeInTheDocument();
   });
 
+  it("displays elapsed / total time formatted as m:ss", () => {
+    render(
+      <NowPlayingCard
+        track={makeTrack({ progressMs: 83_000, durationMs: 300_000 })}
+        placeName="X"
+        onPlayPause={vi.fn()}
+        onNext={vi.fn()}
+        controlMessage={null}
+      />,
+    );
+    expect(screen.getByTestId("progress-time")).toHaveTextContent(
+      "1:23 / 5:00",
+    );
+  });
+
   it("shows the control message when provided and hides it when null", () => {
     const { rerender } = render(
       <NowPlayingCard

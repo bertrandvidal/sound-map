@@ -125,9 +125,11 @@ export default function MapView({ token, onTokenExpired }) {
       wasPlaying ? pause(token) : play(token),
     );
     if (!ok) return;
-    // optimistic flip so the icon updates before the next poll lands
+    // Optimistic flip so the icon updates immediately. We deliberately do NOT
+    // re-sync here: Spotify's currently-playing read is eventually consistent
+    // and for a moment still reports the old is_playing, which would clobber
+    // this flip and make the button flicker back. The 5s poll reconciles.
     setTrack((t) => (t ? { ...t, isPlaying: !wasPlaying } : t));
-    syncNowPlaying().catch(() => {});
   }
 
   async function handleNext() {
