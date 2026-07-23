@@ -1,16 +1,20 @@
 import request from "supertest";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app.js";
 import { sealToken } from "../auth.js";
 
 const CREDS = { clientId: "test-id", clientSecret: "test-secret" };
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("createApp routes", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.spyOn(console, "info").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
-    process.env.COOKIE_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
+    vi.stubEnv("COOKIE_ENCRYPTION_KEY", Buffer.alloc(32, 7).toString("base64"));
   });
 
   it("redirects to the frontend with access_denied when the callback errors", async () => {

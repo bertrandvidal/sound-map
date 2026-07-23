@@ -18,7 +18,7 @@ export default async function handler(req, res) {
       expires_in: expiresIn,
     });
   } catch (err) {
-    console.error("[api/refresh] refresh failed:", err.message);
+    console.error("[api/refresh] refresh failed:", err);
     return res.status(401).json({ error: "refresh_failed" });
   }
 }

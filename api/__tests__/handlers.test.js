@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sealToken } from "../../server/auth.js";
 import callback from "../callback.js";
 import logout from "../logout.js";
@@ -28,14 +28,20 @@ function mockRes() {
   };
 }
 
+// Restore any env vars stubbed per-test so nothing leaks between tests.
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("api/callback", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    process.env.COOKIE_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
-    process.env.VITE_SPOTIFY_CLIENT_ID = "id";
-    process.env.SPOTIFY_CLIENT_SECRET = "secret";
-    process.env.REDIRECT_URI = "https://app.vercel.app/api/callback";
-    process.env.FRONTEND_URL = "https://app.vercel.app";
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubEnv("COOKIE_ENCRYPTION_KEY", Buffer.alloc(32, 7).toString("base64"));
+    vi.stubEnv("VITE_SPOTIFY_CLIENT_ID", "id");
+    vi.stubEnv("SPOTIFY_CLIENT_SECRET", "secret");
+    vi.stubEnv("REDIRECT_URI", "https://app.vercel.app/api/callback");
+    vi.stubEnv("FRONTEND_URL", "https://app.vercel.app");
   });
 
   it("seals the refresh token into a Secure cookie and redirects home", async () => {
@@ -75,9 +81,10 @@ describe("api/callback", () => {
 describe("api/refresh", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    process.env.COOKIE_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
-    process.env.VITE_SPOTIFY_CLIENT_ID = "id";
-    process.env.SPOTIFY_CLIENT_SECRET = "secret";
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubEnv("COOKIE_ENCRYPTION_KEY", Buffer.alloc(32, 7).toString("base64"));
+    vi.stubEnv("VITE_SPOTIFY_CLIENT_ID", "id");
+    vi.stubEnv("SPOTIFY_CLIENT_SECRET", "secret");
   });
 
   it("returns 401 no_session without a cookie", async () => {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildSessionCookie,
   COOKIE_NAME,
@@ -11,6 +11,10 @@ import {
   refreshSession,
   sealToken,
 } from "../auth.js";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("parseCookies", () => {
   it("returns an empty object for a missing header", () => {
@@ -138,7 +142,7 @@ describe("exchangeAuthCode", () => {
 
 describe("sealToken / openToken", () => {
   beforeEach(() => {
-    process.env.COOKIE_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
+    vi.stubEnv("COOKIE_ENCRYPTION_KEY", Buffer.alloc(32, 7).toString("base64"));
   });
 
   it("round-trips a plaintext token", () => {
@@ -161,17 +165,17 @@ describe("sealToken / openToken", () => {
 
   it("throws when opened with a different key", () => {
     const sealed = sealToken("refresh-abc");
-    process.env.COOKIE_ENCRYPTION_KEY = Buffer.alloc(32, 9).toString("base64");
+    vi.stubEnv("COOKIE_ENCRYPTION_KEY", Buffer.alloc(32, 9).toString("base64"));
     expect(() => openToken(sealed)).toThrow();
   });
 
   it("throws when the key is missing", () => {
-    process.env.COOKIE_ENCRYPTION_KEY = "";
+    vi.stubEnv("COOKIE_ENCRYPTION_KEY", "");
     expect(() => sealToken("x")).toThrow(/COOKIE_ENCRYPTION_KEY/);
   });
 
   it("throws when the key does not decode to 32 bytes", () => {
-    process.env.COOKIE_ENCRYPTION_KEY = Buffer.alloc(16, 1).toString("base64");
+    vi.stubEnv("COOKIE_ENCRYPTION_KEY", Buffer.alloc(16, 1).toString("base64"));
     expect(() => sealToken("x")).toThrow(/32 bytes/);
   });
 
@@ -216,7 +220,7 @@ describe("clearSessionCookie", () => {
 describe("createSession", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    process.env.COOKIE_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
+    vi.stubEnv("COOKIE_ENCRYPTION_KEY", Buffer.alloc(32, 7).toString("base64"));
   });
 
   it("exchanges the code and returns a sealed session cookie", async () => {
@@ -243,7 +247,7 @@ describe("createSession", () => {
 describe("refreshSession", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    process.env.COOKIE_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
+    vi.stubEnv("COOKIE_ENCRYPTION_KEY", Buffer.alloc(32, 7).toString("base64"));
   });
 
   it("returns an access token and no cookie when the token did not rotate", async () => {

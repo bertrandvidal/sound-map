@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     res.setHeader("Set-Cookie", cookie);
     return res.redirect(frontendUrl);
   } catch (err) {
-    console.error("[api/callback] token exchange failed:", err.message);
+    console.error("[api/callback] token exchange failed:", err);
     return res.redirect(`${frontendUrl}?error=token_exchange_failed`);
   }
 }

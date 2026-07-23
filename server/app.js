@@ -35,7 +35,7 @@ export function createApp({
       // No token in the URL — the SPA fetches one via POST /api/refresh.
       return res.redirect(frontendUrl);
     } catch (err) {
-      console.error("[server] token exchange failed:", err.message);
+      console.error("[server] token exchange failed:", err);
       return res.redirect(`${frontendUrl}?error=token_exchange_failed`);
     }
   });
@@ -57,7 +57,7 @@ export function createApp({
       console.info("[server] token refresh succeeded");
       res.json({ access_token: accessToken, expires_in: expiresIn });
     } catch (err) {
-      console.error("[server] token refresh failed:", err.message);
+      console.error("[server] token refresh failed:", err);
       res.status(401).json({ error: "refresh_failed" });
     }
   });
