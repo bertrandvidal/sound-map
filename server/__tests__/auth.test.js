@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  buildSessionCookie,
   COOKIE_NAME,
+  clearSessionCookie,
   exchangeAuthCode,
   exchangeRefreshToken,
   openToken,
@@ -173,5 +175,32 @@ describe("sealToken / openToken", () => {
 
   it("exposes the unified cookie name", () => {
     expect(COOKIE_NAME).toBe("rt");
+  });
+});
+
+describe("buildSessionCookie", () => {
+  it("emits the sealed value with the shared attributes", () => {
+    const cookie = buildSessionCookie("SEALED", { secure: true });
+    expect(cookie).toMatch(/^rt=SEALED/);
+    expect(cookie).toMatch(/HttpOnly/);
+    expect(cookie).toMatch(/SameSite=Lax/);
+    expect(cookie).toMatch(/Path=\//);
+    expect(cookie).toMatch(/Max-Age=2592000/);
+    expect(cookie).toMatch(/Secure/);
+  });
+
+  it("omits Secure when secure is false (local http)", () => {
+    const cookie = buildSessionCookie("SEALED", { secure: false });
+    expect(cookie).not.toMatch(/Secure/);
+    expect(cookie).toMatch(/HttpOnly/);
+  });
+});
+
+describe("clearSessionCookie", () => {
+  it("expires the cookie with Max-Age=0", () => {
+    const cookie = clearSessionCookie({ secure: true });
+    expect(cookie).toMatch(/^rt=;/);
+    expect(cookie).toMatch(/Max-Age=0/);
+    expect(cookie).toMatch(/Secure/);
   });
 });

@@ -3,6 +3,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
 
 export const COOKIE_NAME = "rt";
+const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days, in seconds
 
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
@@ -43,6 +44,30 @@ export function openToken(sealed) {
     decipher.update(ciphertext),
     decipher.final(),
   ]).toString("utf8");
+}
+
+export function buildSessionCookie(sealed, { secure }) {
+  const attrs = [
+    `${COOKIE_NAME}=${sealed}`,
+    "HttpOnly",
+    "SameSite=Lax",
+    "Path=/",
+    `Max-Age=${COOKIE_MAX_AGE}`,
+  ];
+  if (secure) attrs.push("Secure");
+  return attrs.join("; ");
+}
+
+export function clearSessionCookie({ secure }) {
+  const attrs = [
+    `${COOKIE_NAME}=`,
+    "HttpOnly",
+    "SameSite=Lax",
+    "Path=/",
+    "Max-Age=0",
+  ];
+  if (secure) attrs.push("Secure");
+  return attrs.join("; ");
 }
 
 export function parseCookies(header) {
