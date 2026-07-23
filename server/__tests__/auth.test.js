@@ -3,10 +3,12 @@ import {
   buildSessionCookie,
   COOKIE_NAME,
   clearSessionCookie,
+  createSession,
   exchangeAuthCode,
   exchangeRefreshToken,
   openToken,
   parseCookies,
+  refreshSession,
   sealToken,
 } from "../auth.js";
 
@@ -208,5 +210,92 @@ describe("clearSessionCookie", () => {
     const cookie = clearSessionCookie({ secure: false });
     expect(cookie).not.toMatch(/Secure/);
     expect(cookie).toMatch(/Max-Age=0/);
+  });
+});
+
+describe("createSession", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    process.env.COOKIE_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
+  });
+
+  it("exchanges the code and returns a sealed session cookie", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ refresh_token: "refresh-abc" }),
+      }),
+    );
+    const { cookie } = await createSession("auth-code", {
+      clientId: "id",
+      clientSecret: "secret",
+      redirectUri: "http://127.0.0.1:3000/callback",
+      secure: true,
+    });
+    expect(cookie).toMatch(/^rt=/);
+    expect(cookie).toMatch(/Secure/);
+    // the sealed value must not leak the plaintext refresh token
+    expect(cookie).not.toContain("refresh-abc");
+  });
+});
+
+describe("refreshSession", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    process.env.COOKIE_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
+  });
+
+  it("returns an access token and no cookie when the token did not rotate", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({ access_token: "fresh", expires_in: 3600 }),
+      }),
+    );
+    const sealed = sealToken("refresh-abc");
+    const result = await refreshSession(sealed, {
+      clientId: "id",
+      clientSecret: "secret",
+      secure: false,
+    });
+    expect(result.accessToken).toBe("fresh");
+    expect(result.expiresIn).toBe(3600);
+    expect(result.cookie).toBeNull();
+  });
+
+  it("re-issues a cookie when Spotify rotates the refresh token", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            access_token: "fresh",
+            expires_in: 3600,
+            refresh_token: "rotated",
+          }),
+      }),
+    );
+    const sealed = sealToken("refresh-abc");
+    const result = await refreshSession(sealed, {
+      clientId: "id",
+      clientSecret: "secret",
+      secure: true,
+    });
+    expect(result.cookie).toMatch(/^rt=/);
+    expect(result.cookie).toMatch(/Secure/);
+  });
+
+  it("throws when the sealed cookie is invalid", async () => {
+    await expect(
+      refreshSession("not-a-valid-sealed-blob", {
+        clientId: "id",
+        clientSecret: "secret",
+        secure: false,
+      }),
+    ).rejects.toThrow();
   });
 });

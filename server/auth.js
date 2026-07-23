@@ -149,3 +149,34 @@ export async function exchangeAuthCode(
   }
   return { refreshToken: data.refresh_token };
 }
+
+export async function createSession(
+  code,
+  { clientId, clientSecret, redirectUri, secure },
+) {
+  const { refreshToken } = await exchangeAuthCode(code, {
+    clientId,
+    clientSecret,
+    redirectUri,
+  });
+  return { cookie: buildSessionCookie(sealToken(refreshToken), { secure }) };
+}
+
+export async function refreshSession(
+  sealed,
+  { clientId, clientSecret, secure },
+) {
+  const refreshToken = openToken(sealed); // throws on tamper/invalid
+  const result = await exchangeRefreshToken(refreshToken, {
+    clientId,
+    clientSecret,
+  });
+  const rotated = result.refreshToken !== refreshToken;
+  return {
+    accessToken: result.accessToken,
+    expiresIn: result.expiresIn,
+    cookie: rotated
+      ? buildSessionCookie(sealToken(result.refreshToken), { secure })
+      : null,
+  };
+}
