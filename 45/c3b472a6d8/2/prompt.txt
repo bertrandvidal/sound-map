@@ -1,0 +1,5 @@
+I want to brainstorm what it would take to make this application available online to anyone.
+
+---
+
+The Spotify policy is now limiting number of users to five, not twenty five. while I want to be learning new technology, I also feel that there's got to be a better model to deploy a simple app like this that's running JS/Vite. Something like vercel, GH Pages, Netlify, fly.io, firebase etc. I'm actually not sure what's needed in terms of infra, overall I'm looking for something simple, free is a nice to have
