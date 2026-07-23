@@ -1,0 +1,95 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "45c3b472a6d8",
+  "session_id": "0d14c314-9a54-48ad-8939-06a1821f841e",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-23T16:52:47.358234Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".gitignore",
+    "docs/superpowers/specs/2026-07-23-vercel-deployment-design.md"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "2af2f0c8b700",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 35,
+    "cache_creation_tokens": 75254,
+    "cache_read_tokens": 738360,
+    "output_tokens": 26230,
+    "api_call_count": 18
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01B2sYHsKCmbJcmxQJCJfPMN",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:brainstorming"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "2af2f0c8b700",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 22,
+        "end": 23,
+        "entry_ids": [
+          "5665cb53-88b9-4ef6-b04b-d7bcde1b647b"
+        ],
+        "tool_use_id": "toolu_01B2sYHsKCmbJcmxQJCJfPMN"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01B2sYHsKCmbJcmxQJCJfPMN"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:brainstorming",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-23T16:52:47.345969Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 182,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 182,
+    "total_lines_changed": 182,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 270,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 27,
+        ".superpowers/brainstorm/.last-port": 1,
+        ".superpowers/brainstorm/.last-token": 1,
+        ".superpowers/brainstorm/86426-1784824647/content/motion.html": 43,
+        ".superpowers/brainstorm/86426-1784824647/content/visual-direction.html": 61,
+        ".superpowers/brainstorm/86426-1784824647/content/worldmap-v2.html": 62,
+        ".superpowers/brainstorm/86426-1784824647/content/worldmap.html": 65,
+        ".superpowers/brainstorm/86426-1784824647/state/server-info": 1,
+        ".superpowers/brainstorm/86426-1784824647/state/server-instance-id": 1,
+        ".superpowers/brainstorm/86426-1784824647/state/server.log": 7,
+        ".superpowers/brainstorm/86426-1784824647/state/server.pid": 1
+      }
+    }
+  ]
+}

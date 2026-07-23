@@ -1,0 +1,5 @@
+Let's go with Vercel keeping the current local setup and using hexagonal architecture. Now let's talk about the  encrypting the refresh token into the cookie. Is this secure? How does this change the flow? Would httpOnly cookie be supported on Vercel?
+
+---
+
+The design looks right, I want the plan to have a specific agent to run me through setting up vercel account, project, mcp or agent, cli, add the app's URL to spotify, how to handle preview deployments, etc. Other than that the plan is good to go
