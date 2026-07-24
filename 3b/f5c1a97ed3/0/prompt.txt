@@ -1,0 +1,1 @@
+Let's rename VITE_SPOTIFY_CLIENT_ID to something accurate it'll prevent confusion, do not update old docs. Also note that something was merged to main in the meantime so rebase/update the branch.
