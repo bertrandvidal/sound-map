@@ -87,9 +87,16 @@ describe("api/refresh", () => {
     vi.stubEnv("SPOTIFY_CLIENT_SECRET", "secret");
   });
 
+  it("rejects non-POST requests with 405", async () => {
+    const res = mockRes();
+    await refresh({ method: "GET", headers: {} }, res);
+    expect(res.statusCode).toBe(405);
+    expect(res.body).toEqual({ error: "method_not_allowed" });
+  });
+
   it("returns 401 no_session without a cookie", async () => {
     const res = mockRes();
-    await refresh({ headers: {} }, res);
+    await refresh({ method: "POST", headers: {} }, res);
     expect(res.statusCode).toBe(401);
     expect(res.body).toEqual({ error: "no_session" });
   });
@@ -105,23 +112,30 @@ describe("api/refresh", () => {
     );
     const sealed = sealToken("refresh-abc");
     const res = mockRes();
-    await refresh({ headers: { cookie: `rt=${sealed}` } }, res);
+    await refresh({ method: "POST", headers: { cookie: `rt=${sealed}` } }, res);
     expect(res.statusCode).toBe(200);
     expect(res.body).toEqual({ access_token: "fresh", expires_in: 3600 });
   });
 
   it("returns 401 refresh_failed for a tampered cookie", async () => {
     const res = mockRes();
-    await refresh({ headers: { cookie: "rt=garbage" } }, res);
+    await refresh({ method: "POST", headers: { cookie: "rt=garbage" } }, res);
     expect(res.statusCode).toBe(401);
     expect(res.body).toEqual({ error: "refresh_failed" });
   });
 });
 
 describe("api/logout", () => {
+  it("rejects non-POST requests with 405", async () => {
+    const res = mockRes();
+    await logout({ method: "GET" }, res);
+    expect(res.statusCode).toBe(405);
+    expect(res.body).toEqual({ error: "method_not_allowed" });
+  });
+
   it("clears the rt cookie with a Secure attribute and returns ok", async () => {
     const res = mockRes();
-    await logout({}, res);
+    await logout({ method: "POST" }, res);
     expect(res.statusCode).toBe(200);
     expect(res.body).toEqual({ ok: true });
     expect(res.headers["Set-Cookie"]).toMatch(/^rt=;/);
