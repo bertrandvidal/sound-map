@@ -52,3 +52,7 @@ When running vercel dev I get a white page on http://localhost:3000/ and the fol
       at TransformPluginContext.transform (file:///Users/bert/github/sound-map/node_modules/vite/dist/node/chunks/node.js:27402:10)
       at async EnvironmentPluginContainer.transform (file:///Users/bert/github/sound-map/node_modules/vite/dist/node/chunks/node.js:30201:14)
       at async loadAndTransform (file:///Users/bert/github/sound-map/node_modules/vite/dist/node/chunks/node.js:20124:26)"
+
+---
+
+The login page loads but when clicking the login button I get redirected to "http://127.0.0.1:3000/callback?REDACTED" which shows the login screen again and not the app
