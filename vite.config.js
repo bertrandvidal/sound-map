@@ -5,9 +5,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: "127.0.0.1",
-    proxy: {
-      "/api": "http://127.0.0.1:3000",
-    },
   },
   test: {
     environment: "jsdom",
@@ -25,7 +22,6 @@ export default defineConfig({
         "**/*.test.{js,jsx}",
         "src/test/setup.js",
         "src/main.jsx", // React DOM entry point (createRoot+render); no logic
-        "server/index.js", // process entry point (env check + listen)
         "src/components/LeafletMap.jsx", // react-leaflet wrapper; needs real canvas/map sizing jsdom lacks
         "src/components/AlbumBubble.jsx", // builds a Leaflet divIcon + Popup; same canvas/DOM constraint
       ],

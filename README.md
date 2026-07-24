@@ -13,15 +13,19 @@ Map the music you listen to — see where artists are from as album art bubbles 
 1. **Create a Spotify Developer app**
    - Go to https://developer.spotify.com/dashboard
    - Click **Create app**
-   - Under **Redirect URIs**, add: `http://127.0.0.1:3000/callback`
+   - Under **Redirect URIs**, add: `http://127.0.0.1:3000/api/callback`
    - Save your **Client ID** and **Client Secret**
 
 2. **Create a `.env` file** at the repo root (this file is gitignored):
 
+   ```bash
+   cp .env.example .env
    ```
-   VITE_SPOTIFY_CLIENT_ID=your_client_id_here
-   SPOTIFY_CLIENT_SECRET=your_client_secret_here
-   ```
+
+   Then fill in the values. `.env.example` documents each variable; you'll need
+   your Spotify Client ID and Secret, a cookie key
+   (`openssl rand -base64 32`), and the local callback/frontend URLs (already
+   filled in for `vercel dev`).
 
 3. **Install dependencies**
 
@@ -31,24 +35,22 @@ Map the music you listen to — see where artists are from as album art bubbles 
 
 ## Running locally
 
-You need two terminal windows:
+Local dev runs the **same shape as production** — the static SPA plus the
+`/api/*` serverless functions on a single origin — via the Vercel CLI:
 
-**Terminal 1 — OAuth server (port 3000):**
 ```bash
-node server/index.js
+npm i -g vercel      # once
+vercel login         # once
+vercel link          # once — link this folder to your Vercel project
+npm start            # runs `vercel dev` on http://127.0.0.1:3000
 ```
 
-**Terminal 2 — Frontend (port 5173):**
-```bash
-npm run dev
-```
+Open http://127.0.0.1:3000, click **Login with Spotify**, and start playing
+something.
 
-Or run both with one command:
-```bash
-npm start
-```
-
-Open http://localhost:5173, click **Login with Spotify**, and start playing something.
+> `npm run dev` still runs the Vite frontend alone (port 5173) for quick UI-only
+> work, but `/api/*` won't be available there — use `npm start` for anything that
+> touches auth.
 
 ## Running tests
 

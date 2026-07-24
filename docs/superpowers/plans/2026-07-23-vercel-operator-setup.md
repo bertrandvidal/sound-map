@@ -30,12 +30,12 @@ up the Vercel project and Spotify config that the code expects.
 - [ ] Install the CLI: `npm i -g vercel` (or use `npx vercel`).
 - [ ] `vercel login`, then `vercel link` inside the repo to connect this folder
       to the project.
-- [ ] `vercel dev` runs the **production shape locally** — the static SPA plus
-      the `api/` serverless functions on a single origin. This is worth doing
-      because it exercises the Vercel adapters (`api/callback.js`,
-      `api/refresh.js`, `api/logout.js`) that the plain `npm start` loop never
-      touches. Sanity check: the SPA loads, and `POST /api/refresh` with no
-      cookie returns `401 {"error":"no_session"}`.
+- [ ] `vercel dev` (aliased to `npm start`) runs the **production shape
+      locally** — the static SPA plus the `api/` serverless functions
+      (`api/callback.js`, `api/refresh.js`, `api/logout.js`) on a single origin.
+      This is now the standard local dev environment (the old Express
+      `npm run server` process has been removed). Sanity check: the SPA loads,
+      and `POST /api/refresh` with no cookie returns `401 {"error":"no_session"}`.
       - Note: `vercel dev` reads env from the linked project (or a local
         `.env`); make sure `COOKIE_ENCRYPTION_KEY` is available to it too.
 
@@ -68,10 +68,11 @@ the **Production** environment:
 
 ## E. Spotify dashboard
 
-- [ ] Add the production redirect URI
-      `https://<app>.vercel.app/api/callback` **alongside** the existing
-      `http://127.0.0.1:3000/callback` — keep both so local dev and production
-      each work.
+- [ ] Register both redirect URIs so local dev and production each work:
+      `https://<app>.vercel.app/api/callback` (production) and
+      `http://127.0.0.1:3000/api/callback` (local `vercel dev`). If an older
+      `http://127.0.0.1:3000/callback` (the removed Express path) is still
+      listed, delete it.
 - [ ] Under **Users and Access**, add up to **5** allowlisted users (name +
       email each). This is the Development Mode cap; there is no public signup.
 
