@@ -18,7 +18,9 @@ describe("buildAuthUrl", () => {
       "user-read-currently-playing+user-modify-playback-state",
     );
     expect(url).toContain("client_id=test-client-id");
-    expect(url).toContain(encodeURIComponent("http://127.0.0.1:3000/callback"));
+    expect(url).toContain(
+      encodeURIComponent("http://127.0.0.1:3000/api/callback"),
+    );
   });
 
   it("uses VITE_REDIRECT_URI when set (production)", () => {
