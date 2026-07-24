@@ -3,7 +3,7 @@
   "checkpoint_id": "8280f832f54a",
   "strategy": "manual-commit",
   "branch": "local-dev-on-vercel",
-  "checkpoints_count": 12,
+  "checkpoints_count": 1,
   "files_touched": null,
   "sessions": [
     {
@@ -15,10 +15,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 116,
-    "cache_creation_tokens": 110140,
-    "cache_read_tokens": 4207697,
-    "output_tokens": 78434,
-    "api_call_count": 64
+    "input_tokens": 133,
+    "cache_creation_tokens": 120392,
+    "cache_read_tokens": 5381846,
+    "output_tokens": 86405,
+    "api_call_count": 73
   }
 }
