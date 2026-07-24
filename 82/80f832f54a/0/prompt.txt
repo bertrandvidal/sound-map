@@ -56,3 +56,7 @@ When running vercel dev I get a white page on http://localhost:3000/ and the fol
 ---
 
 The login page loads but when clicking the login button I get redirected to "http://127.0.0.1:3000/callback?REDACTED" which shows the login screen again and not the app
+
+---
+
+Update #6 so that you also check that all .env* file are consistent in term of which variables are in it. E.g. .env.local has a VERCEL_OIDC_TOKEN which others don't, .env.test only has VITE_SPOTIFY_CLIENT_ID
