@@ -5,11 +5,10 @@ coverage/
 # Superpowers visual-companion / brainstorm scratch (transient HTML mockups)
 .superpowers/
 
-# Env files: ignore all real env files. .env.example (template) and .env.test
-# (fake test creds, needed for `npm test`) are intentionally committed.
+# Env files: ignore all real env files. .env.example (template) is
+# intentionally committed.
 .env*
 !.env.example
-!.env.test
 
 .DS_Store
 

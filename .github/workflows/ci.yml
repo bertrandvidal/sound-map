@@ -8,8 +8,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege by default. Only the coverage-comment job below re-requests
+# the pull-requests: write scope it needs — the build/test job runs installed
+# dependencies and test code, which must never hold a write-capable token.
 permissions:
-  pull-requests: write
+  contents: read
 
 jobs:
   ci:
@@ -37,5 +40,29 @@ jobs:
       - name: Audit dependencies
         run: npm audit --audit-level=high
 
+      - name: Upload coverage report
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+
+  coverage-comment:
+    if: github.event_name == 'pull_request'
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+
       - name: Post coverage comment
-        uses: davelosert/vitest-coverage-report-action@v2
+        # Third-party action pinned to a commit SHA so a repointed tag cannot
+        # inject code that runs with the PR-write token.
+        uses: davelosert/vitest-coverage-report-action@2500dafcee7dd64f85ab689c0b83798a8359770e # v2.9.3
