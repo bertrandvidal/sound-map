@@ -5,12 +5,16 @@ This file provides guidance to Claude Code when working with code in this reposi
 ## Commands
 
 ```bash
-npm start          # run both processes concurrently (recommended for dev)
-npm run dev        # Vite frontend only (port 5173)
-npm run server     # Express OAuth server only (port 3000)
+npm start          # vercel dev — production shape locally (http://127.0.0.1:3000)
+npm run dev        # Vite frontend only (port 5173); no /api
+npm run build      # production build (vite build → dist)
 npm test           # run Vitest once
 npm run test:watch # Vitest in watch mode
 ```
+
+Local dev requires the Vercel CLI (`npm i -g vercel`, `vercel login`,
+`vercel link`). `npm start` runs `vercel dev`, which serves the static SPA and
+the `/api/*` serverless functions on one origin — the same shape as production.
 
 To run a single test file:
 ```bash
@@ -19,15 +23,20 @@ npx vitest run src/__tests__/geo.test.js
 
 ## Architecture
 
-Two processes must run together:
+Local dev runs the **production shape** via `vercel dev`: the static Vite SPA
+plus the `/api/*` serverless functions on a single origin
+(`http://127.0.0.1:3000`). There is no separate backend process.
 
-- **`server/index.js`** — Express server (port 3000) that handles the Spotify OAuth callback. It exchanges the authorization code for an access token using the Client Secret (which cannot be in the browser), then redirects to the frontend with `?token=...` as a query param.
-- **`src/`** — Vite + React SPA (port 5173). The token lands in `App.jsx` via `URLSearchParams`, is stored in React state, and passed down to `MapView`.
+- **`api/callback.js`, `api/refresh.js`, `api/logout.js`** — Vercel serverless functions handling OAuth. They are thin adapters that delegate all logic to `server/auth.js`.
+- **`server/auth.js`** — framework-agnostic auth core: AES-256-GCM seal/open of the refresh token, `createSession`/`refreshSession`, and the session-cookie builders. The Client Secret is used here (server-only), never in the browser.
+- **`src/`** — Vite + React SPA. `App.jsx` bootstraps by calling `refreshAccessToken()` (→ `POST /api/refresh`), which exchanges the encrypted `rt` session cookie for a short-lived access token held in React state and passed down to `MapView`.
 
 ### Data flow
 
 ```
-Spotify → server/index.js → ?token=… → App.jsx (state)
+Spotify → api/callback.js → sets encrypted `rt` cookie → redirect to FRONTEND_URL
+                                              ↓
+App.jsx → POST /api/refresh (sends rt cookie) → access token (React state)
                                               ↓
 MapView (polls every few seconds via fetchCurrentlyPlaying)
   → artist changed? → lookupArtistLocation (MusicBrainz → Nominatim)
@@ -42,11 +51,17 @@ MapView (polls every few seconds via fetchCurrentlyPlaying)
 
 ### Environment variables
 
-`.env` at repo root (gitignored):
+`.env` at repo root (gitignored) — copy from `.env.example`, which documents all
+six variables:
 ```
-VITE_SPOTIFY_CLIENT_ID=...    # exposed to browser via import.meta.env
-SPOTIFY_CLIENT_SECRET=...     # server-only; never in client code
+VITE_SPOTIFY_CLIENT_ID   # exposed to browser via import.meta.env
+SPOTIFY_CLIENT_SECRET    # server-only; never in client code
+COOKIE_ENCRYPTION_KEY    # 32 bytes, base64 — openssl rand -base64 32
+REDIRECT_URI             # http://127.0.0.1:3000/api/callback (local)
+VITE_REDIRECT_URI        # must equal REDIRECT_URI (client sends it to Spotify)
+FRONTEND_URL             # http://127.0.0.1:3000 (local); callback redirects here
 ```
+`vercel dev` also reads `VERCEL_OIDC_TOKEN` from `.env.local` (auto-managed).
 
 ## Spotify API rules
 
