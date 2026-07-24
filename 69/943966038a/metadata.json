@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "69943966038a",
+  "strategy": "manual-commit",
+  "branch": "security-hardening",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "api/__tests__/handlers.test.js",
+    "server/__tests__/auth.test.js",
+    "server/auth.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/69/943966038a/0/metadata.json",
+      "transcript": "/69/943966038a/0/full.jsonl",
+      "compact_transcript": "/69/943966038a/0/transcript.jsonl",
+      "content_hash": "/69/943966038a/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 6667,
+    "cache_read_tokens": 616302,
+    "output_tokens": 5174,
+    "api_call_count": 7
+  }
+}
