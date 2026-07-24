@@ -27,14 +27,16 @@ Local dev runs the **production shape** via `vercel dev`: the static Vite SPA
 plus the `/api/*` serverless functions on a single origin
 (`http://127.0.0.1:3000`). There is no separate backend process.
 
-- **`api/callback.js`, `api/refresh.js`, `api/logout.js`** — Vercel serverless functions handling OAuth. They are thin adapters that delegate all logic to `server/auth.js`.
-- **`server/auth.js`** — framework-agnostic auth core: AES-256-GCM seal/open of the refresh token, `createSession`/`refreshSession`, and the session-cookie builders. The Client Secret is used here (server-only), never in the browser.
+- **`api/login.js`, `api/callback.js`, `api/refresh.js`, `api/logout.js`** — Vercel serverless functions handling OAuth. They are thin adapters that delegate all logic to `server/auth.js`. `/api/login` mints a one-time CSRF `state` (HttpOnly `oauth_state` cookie) and redirects to Spotify; `/api/callback` verifies it before exchanging the code. `/api/refresh` and `/api/logout` are POST-only.
+- **`server/auth.js`** — framework-agnostic auth core: AES-256-GCM seal/open of the session payload `{ rt, iat }` (the `iat` enforces the 30-day session lifetime server-side), `createSession`/`refreshSession`, the authorize-URL builder, and the session/state cookie builders. The Client Secret is used here (server-only), never in the browser.
 - **`src/`** — Vite + React SPA. `App.jsx` bootstraps by calling `refreshAccessToken()` (→ `POST /api/refresh`), which exchanges the encrypted `rt` session cookie for a short-lived access token held in React state and passed down to `MapView`.
 
 ### Data flow
 
 ```
-Spotify → api/callback.js → sets encrypted `rt` cookie → redirect to FRONTEND_URL
+LandingPage → GET /api/login → sets `oauth_state` cookie → redirect to Spotify /authorize
+                                              ↓
+Spotify → api/callback.js → verifies `state` → sets encrypted `rt` cookie → redirect to FRONTEND_URL
                                               ↓
 App.jsx → POST /api/refresh (sends rt cookie) → access token (React state)
                                               ↓
@@ -43,7 +45,7 @@ MapView (polls every few seconds via fetchCurrentlyPlaying)
   → LeafletMap → AlbumBubble (marker at artist's origin)
 ```
 
-**`src/spotify.js`** — two exported functions: `buildAuthUrl()` (constructs the `/authorize` URL) and `fetchCurrentlyPlaying(token)` (polls `/me/player/currently-playing`). Throws structured errors: `TOKEN_EXPIRED`, `RATE_LIMITED:<seconds>`, `SPOTIFY_ERROR:<status>`. `MapView` handles all three cases.
+**`src/spotify.js`** — Spotify Web API client: `fetchCurrentlyPlaying(token)` (polls `/me/player/currently-playing`) plus the `play`/`pause`/`skipToNext` player controls. Throws structured errors: `TOKEN_EXPIRED`, `RATE_LIMITED:<seconds>`, `SPOTIFY_ERROR:<status>`. `MapView` handles all three cases. Login starts at the server's `/api/login`, not here.
 
 **`src/geo.js`** — `lookupArtistLocation(artistName)` queries MusicBrainz for the artist's `begin-area` or `area`, then resolves it to lat/lng via Nominatim. Returns `null` on any failure; `MapView` maps `null` to the Pacific Ocean fallback `{ lat: 0, lng: -160 }` rather than leaving the marker at the previous artist's location.
 
@@ -52,13 +54,12 @@ MapView (polls every few seconds via fetchCurrentlyPlaying)
 ### Environment variables
 
 `.env` at repo root (gitignored) — copy from `.env.example`, which documents all
-six variables:
+five variables:
 ```
-VITE_SPOTIFY_CLIENT_ID   # exposed to browser via import.meta.env
+VITE_SPOTIFY_CLIENT_ID   # read server-side by /api/login; VITE_ prefix is historical
 SPOTIFY_CLIENT_SECRET    # server-only; never in client code
 COOKIE_ENCRYPTION_KEY    # 32 bytes, base64 — openssl rand -base64 32
 REDIRECT_URI             # http://127.0.0.1:3000/api/callback (local)
-VITE_REDIRECT_URI        # must equal REDIRECT_URI (client sends it to Spotify)
 FRONTEND_URL             # http://127.0.0.1:3000 (local); callback redirects here
 ```
 `vercel dev` also reads `VERCEL_OIDC_TOKEN` from `.env.local` (auto-managed).

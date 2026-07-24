@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  buildAuthorizeUrl,
   buildSessionCookie,
+  buildStateCookie,
   COOKIE_NAME,
   clearSessionCookie,
+  clearStateCookie,
   createSession,
   exchangeAuthCode,
   exchangeRefreshToken,
@@ -10,6 +13,7 @@ import {
   openToken,
   parseCookies,
   refreshSession,
+  STATE_COOKIE_NAME,
   sealSession,
   sealToken,
 } from "../auth.js";
@@ -253,6 +257,48 @@ describe("clearSessionCookie", () => {
     const cookie = clearSessionCookie({ secure: false });
     expect(cookie).not.toMatch(/Secure/);
     expect(cookie).toMatch(/Max-Age=0/);
+  });
+});
+
+describe("state cookie", () => {
+  it("exposes the state cookie name", () => {
+    expect(STATE_COOKIE_NAME).toBe("oauth_state");
+  });
+
+  it("buildStateCookie emits a short-lived HttpOnly cookie", () => {
+    const cookie = buildStateCookie("state-123", { secure: true });
+    expect(cookie).toMatch(/^oauth_state=state-123/);
+    expect(cookie).toMatch(/HttpOnly/);
+    expect(cookie).toMatch(/SameSite=Lax/);
+    expect(cookie).toMatch(/Max-Age=600/);
+    expect(cookie).toMatch(/Secure/);
+  });
+
+  it("clearStateCookie expires the cookie", () => {
+    const cookie = clearStateCookie({ secure: true });
+    expect(cookie).toMatch(/^oauth_state=;/);
+    expect(cookie).toMatch(/Max-Age=0/);
+  });
+});
+
+describe("buildAuthorizeUrl", () => {
+  it("builds the Spotify authorize URL with the state threaded through", () => {
+    const url = buildAuthorizeUrl({
+      clientId: "id",
+      redirectUri: "https://app.vercel.app/api/callback",
+      state: "state-123",
+    });
+    expect(url).toContain("https://accounts.spotify.com/authorize?");
+    expect(url).toContain("client_id=id");
+    expect(url).toContain("response_type=code");
+    expect(url).toContain("state=state-123");
+    // URLSearchParams encodes the space between scopes as "+".
+    expect(url).toContain(
+      "user-read-currently-playing+user-modify-playback-state",
+    );
+    expect(url).toContain(
+      encodeURIComponent("https://app.vercel.app/api/callback"),
+    );
   });
 });
 

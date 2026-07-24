@@ -1,37 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  buildAuthUrl,
-  fetchCurrentlyPlaying,
-  pause,
-  play,
-  skipToNext,
-} from "../spotify.js";
-
-describe("buildAuthUrl", () => {
-  it("returns a Spotify authorize URL with required params", () => {
-    const url = buildAuthUrl();
-    expect(url).toContain("https://accounts.spotify.com/authorize");
-    expect(url).toContain("response_type=code");
-    expect(url).toContain("scope=user-read-currently-playing");
-    // URLSearchParams encodes the space between scopes as "+".
-    expect(url).toContain(
-      "user-read-currently-playing+user-modify-playback-state",
-    );
-    expect(url).toContain("client_id=test-client-id");
-    expect(url).toContain(
-      encodeURIComponent("http://127.0.0.1:3000/api/callback"),
-    );
-  });
-
-  it("uses VITE_REDIRECT_URI when set (production)", () => {
-    vi.stubEnv("VITE_REDIRECT_URI", "https://app.vercel.app/api/callback");
-    const url = buildAuthUrl();
-    expect(url).toContain(
-      encodeURIComponent("https://app.vercel.app/api/callback"),
-    );
-    vi.unstubAllEnvs();
-  });
-});
+import { fetchCurrentlyPlaying, pause, play, skipToNext } from "../spotify.js";
 
 describe("fetchCurrentlyPlaying", () => {
   beforeEach(() => {

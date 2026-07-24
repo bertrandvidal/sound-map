@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { buildAuthUrl } from "../spotify.js";
 import { pickRandomTagline } from "../taglines.js";
 import { ACCENT, MUTED, STAGE, TEXT } from "../theme.js";
 import WorldMapBackdrop from "./WorldMapBackdrop.jsx";
@@ -13,6 +12,10 @@ const ERROR_MESSAGES = {
   session_expired: {
     text: "Session expired (1 hour limit). Please log in again.",
     color: "#f5c542",
+  },
+  state_mismatch: {
+    text: "Login could not be verified. Please try again.",
+    color: "#f15e6c",
   },
 };
 
@@ -94,7 +97,7 @@ export default function LandingPage({ error }) {
         )}
 
         <a
-          href={buildAuthUrl()}
+          href="/api/login"
           style={{
             position: "relative",
             textDecoration: "none",

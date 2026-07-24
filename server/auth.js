@@ -1,9 +1,17 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
+const SPOTIFY_AUTHORIZE_URL = "https://accounts.spotify.com/authorize";
+const OAUTH_SCOPE = "user-read-currently-playing user-modify-playback-state";
 
 export const COOKIE_NAME = "rt";
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days, in seconds
+
+// One-time CSRF state for the OAuth flow: minted by /api/login, verified and
+// cleared by /api/callback. Short-lived — it only needs to survive the round
+// trip through Spotify's consent screen.
+export const STATE_COOKIE_NAME = "oauth_state";
+const STATE_COOKIE_MAX_AGE = 10 * 60; // 10 minutes, in seconds
 
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
@@ -84,6 +92,29 @@ export function buildSessionCookie(sealed, { secure }) {
 
 export function clearSessionCookie({ secure }) {
   return cookieAttrs(`${COOKIE_NAME}=`, 0, secure);
+}
+
+export function buildStateCookie(state, { secure }) {
+  return cookieAttrs(
+    `${STATE_COOKIE_NAME}=${state}`,
+    STATE_COOKIE_MAX_AGE,
+    secure,
+  );
+}
+
+export function clearStateCookie({ secure }) {
+  return cookieAttrs(`${STATE_COOKIE_NAME}=`, 0, secure);
+}
+
+export function buildAuthorizeUrl({ clientId, redirectUri, state }) {
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: "code",
+    redirect_uri: redirectUri,
+    scope: OAUTH_SCOPE,
+    state,
+  });
+  return `${SPOTIFY_AUTHORIZE_URL}?${params}`;
 }
 
 export function parseCookies(header) {
