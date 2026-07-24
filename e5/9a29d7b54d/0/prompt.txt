@@ -64,3 +64,7 @@ Update #6 so that you also check that all .env* file are consistent in term of w
 ---
 
 Let's do it!
+
+---
+
+Let's do inline
