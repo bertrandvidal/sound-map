@@ -60,3 +60,7 @@ The login page loads but when clicking the login button I get redirected to "htt
 ---
 
 Update #6 so that you also check that all .env* file are consistent in term of which variables are in it. E.g. .env.local has a VERCEL_OIDC_TOKEN which others don't, .env.test only has VITE_SPOTIFY_CLIENT_ID
+
+---
+
+Let's do it!
