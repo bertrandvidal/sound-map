@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "944b7e706885",
+  "strategy": "manual-commit",
+  "branch": "security-hardening",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".env.example",
+    "CLAUDE.md",
+    "api/__tests__/handlers.test.js",
+    "api/callback.js",
+    "api/login.js",
+    "server/__tests__/auth.test.js",
+    "server/auth.js",
+    "src/__tests__/spotify.test.js",
+    "src/components/LandingPage.jsx",
+    "src/components/__tests__/LandingPage.test.jsx",
+    "src/spotify.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/94/4b7e706885/0/metadata.json",
+      "transcript": "/94/4b7e706885/0/full.jsonl",
+      "compact_transcript": "/94/4b7e706885/0/transcript.jsonl",
+      "content_hash": "/94/4b7e706885/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 37,
+    "cache_creation_tokens": 24520,
+    "cache_read_tokens": 2072850,
+    "output_tokens": 17533,
+    "api_call_count": 20
+  }
+}

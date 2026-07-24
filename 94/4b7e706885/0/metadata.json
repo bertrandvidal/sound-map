@@ -1,0 +1,115 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "944b7e706885",
+  "session_id": "75266302-dd94-4644-996b-d45c56790ee2",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-24T16:07:52.117285Z",
+  "branch": "security-hardening",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "server/__tests__/auth.test.js",
+    "api/__tests__/handlers.test.js",
+    "src/components/__tests__/LandingPage.test.jsx",
+    "server/auth.js",
+    "api/login.js",
+    "api/callback.js",
+    "src/components/LandingPage.jsx",
+    "src/spotify.js",
+    "src/__tests__/spotify.test.js",
+    ".env.example",
+    "CLAUDE.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-8",
+  "turn_id": "60cfbd6eea11",
+  "checkpoint_transcript_start": 211,
+  "transcript_lines_at_start": 211,
+  "compact_transcript_start": 56,
+  "token_usage": {
+    "input_tokens": 37,
+    "cache_creation_tokens": 24520,
+    "cache_read_tokens": 2072850,
+    "output_tokens": 17533,
+    "api_call_count": 20
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01GWNxfMeoaM8wFV3wnkLwiz",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "security-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "60cfbd6eea11",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 23,
+        "end": 24,
+        "entry_ids": [
+          "e1e04d9f-02c1-47d6-b165-e63804af526b"
+        ],
+        "tool_use_id": "toolu_01GWNxfMeoaM8wFV3wnkLwiz"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01GWNxfMeoaM8wFV3wnkLwiz"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: security-review",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_013FPPehAchRxYkUMdBMjSE4",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:test-driven-development"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "60cfbd6eea11",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 113,
+        "end": 114,
+        "entry_ids": [
+          "3ea04ab0-609b-4e34-9f4e-b47d17895ebd"
+        ],
+        "tool_use_id": "toolu_013FPPehAchRxYkUMdBMjSE4"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_013FPPehAchRxYkUMdBMjSE4"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:test-driven-development",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-24T16:07:52.089706Z",
+    "agent_lines": 209,
+    "agent_removed": 76,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 209,
+    "total_lines_changed": 285,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
