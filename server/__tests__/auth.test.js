@@ -6,11 +6,15 @@ import {
   createSession,
   exchangeAuthCode,
   exchangeRefreshToken,
+  openSession,
   openToken,
   parseCookies,
   refreshSession,
+  sealSession,
   sealToken,
 } from "../auth.js";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -184,6 +188,41 @@ describe("sealToken / openToken", () => {
   });
 });
 
+describe("sealSession / openSession", () => {
+  beforeEach(() => {
+    vi.stubEnv("COOKIE_ENCRYPTION_KEY", Buffer.alloc(32, 7).toString("base64"));
+  });
+
+  it("round-trips the refresh token", () => {
+    const sealed = sealSession("refresh-abc");
+    expect(openSession(sealed)).toBe("refresh-abc");
+  });
+
+  it("accepts a session younger than 30 days", () => {
+    const issued = 1_000_000_000_000;
+    const sealed = sealSession("refresh-abc", issued);
+    expect(openSession(sealed, issued + 29 * DAY_MS)).toBe("refresh-abc");
+  });
+
+  it("rejects a session older than 30 days", () => {
+    const issued = 1_000_000_000_000;
+    const sealed = sealSession("refresh-abc", issued);
+    expect(() => openSession(sealed, issued + 31 * DAY_MS)).toThrow(
+      /SESSION_EXPIRED/,
+    );
+  });
+
+  it("rejects a legacy seal that holds a raw token instead of a payload", () => {
+    const sealed = sealToken("refresh-abc");
+    expect(() => openSession(sealed)).toThrow();
+  });
+
+  it("rejects a sealed payload missing the expected fields", () => {
+    const sealed = sealToken(JSON.stringify({ unexpected: true }));
+    expect(() => openSession(sealed)).toThrow(/SESSION_INVALID/);
+  });
+});
+
 describe("buildSessionCookie", () => {
   it("emits the sealed value with the shared attributes", () => {
     const cookie = buildSessionCookie("SEALED", { secure: true });
@@ -259,7 +298,7 @@ describe("refreshSession", () => {
           Promise.resolve({ access_token: "fresh", expires_in: 3600 }),
       }),
     );
-    const sealed = sealToken("refresh-abc");
+    const sealed = sealSession("refresh-abc");
     const result = await refreshSession(sealed, {
       clientId: "id",
       clientSecret: "secret",
@@ -283,7 +322,7 @@ describe("refreshSession", () => {
           }),
       }),
     );
-    const sealed = sealToken("refresh-abc");
+    const sealed = sealSession("refresh-abc");
     const result = await refreshSession(sealed, {
       clientId: "id",
       clientSecret: "secret",
@@ -291,6 +330,20 @@ describe("refreshSession", () => {
     });
     expect(result.cookie).toMatch(/^rt=/);
     expect(result.cookie).toMatch(/Secure/);
+  });
+
+  it("rejects a session sealed more than 30 days ago without calling Spotify", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const sealed = sealSession("refresh-abc", Date.now() - 31 * DAY_MS);
+    await expect(
+      refreshSession(sealed, {
+        clientId: "id",
+        clientSecret: "secret",
+        secure: false,
+      }),
+    ).rejects.toThrow(/SESSION_EXPIRED/);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("throws when the sealed cookie is invalid", async () => {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { sealToken } from "../../server/auth.js";
+import { sealSession } from "../../server/auth.js";
 import callback from "../callback.js";
 import logout from "../logout.js";
 import refresh from "../refresh.js";
@@ -110,7 +110,7 @@ describe("api/refresh", () => {
           Promise.resolve({ access_token: "fresh", expires_in: 3600 }),
       }),
     );
-    const sealed = sealToken("refresh-abc");
+    const sealed = sealSession("refresh-abc");
     const res = mockRes();
     await refresh({ method: "POST", headers: { cookie: `rt=${sealed}` } }, res);
     expect(res.statusCode).toBe(200);

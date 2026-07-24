@@ -46,6 +46,26 @@ export function openToken(sealed) {
   ]).toString("utf8");
 }
 
+// The sealed payload carries its own issue time so the 30-day session
+// lifetime is enforced server-side; the cookie's Max-Age alone is
+// client-enforced and a captured sealed value would otherwise replay forever.
+const SESSION_MAX_AGE_MS = COOKIE_MAX_AGE * 1000;
+
+export function sealSession(refreshToken, now = Date.now()) {
+  return sealToken(JSON.stringify({ rt: refreshToken, iat: now }));
+}
+
+export function openSession(sealed, now = Date.now()) {
+  const payload = JSON.parse(openToken(sealed));
+  if (typeof payload?.rt !== "string" || typeof payload?.iat !== "number") {
+    throw new Error("SESSION_INVALID");
+  }
+  if (now - payload.iat > SESSION_MAX_AGE_MS) {
+    throw new Error("SESSION_EXPIRED");
+  }
+  return payload.rt;
+}
+
 function cookieAttrs(nameValue, maxAge, secure) {
   const attrs = [
     nameValue,
@@ -148,14 +168,14 @@ export async function createSession(
     clientSecret,
     redirectUri,
   });
-  return { cookie: buildSessionCookie(sealToken(refreshToken), { secure }) };
+  return { cookie: buildSessionCookie(sealSession(refreshToken), { secure }) };
 }
 
 export async function refreshSession(
   sealed,
   { clientId, clientSecret, secure },
 ) {
-  const refreshToken = openToken(sealed); // throws on tamper/invalid
+  const refreshToken = openSession(sealed); // throws on tamper/invalid/expired
   const result = await exchangeRefreshToken(refreshToken, {
     clientId,
     clientSecret,
@@ -165,7 +185,7 @@ export async function refreshSession(
     accessToken: result.accessToken,
     expiresIn: result.expiresIn,
     cookie: rotated
-      ? buildSessionCookie(sealToken(result.refreshToken), { secure })
+      ? buildSessionCookie(sealSession(result.refreshToken), { secure })
       : null,
   };
 }
