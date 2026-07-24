@@ -12,7 +12,7 @@ export default async function handler(req, res) {
 
   try {
     const { accessToken, expiresIn, cookie } = await refreshSession(sealed, {
-      clientId: process.env.VITE_SPOTIFY_CLIENT_ID,
+      clientId: process.env.SPOTIFY_CLIENT_ID,
       clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
       secure: true,
     });

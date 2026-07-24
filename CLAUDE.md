@@ -56,7 +56,7 @@ MapView (polls every few seconds via fetchCurrentlyPlaying)
 `.env` at repo root (gitignored) — copy from `.env.example`, which documents all
 five variables:
 ```
-VITE_SPOTIFY_CLIENT_ID   # read server-side by /api/login; VITE_ prefix is historical
+SPOTIFY_CLIENT_ID        # Spotify app id; read server-side by /api/login
 SPOTIFY_CLIENT_SECRET    # server-only; never in client code
 COOKIE_ENCRYPTION_KEY    # 32 bytes, base64 — openssl rand -base64 32
 REDIRECT_URI             # http://127.0.0.1:3000/api/callback (local)

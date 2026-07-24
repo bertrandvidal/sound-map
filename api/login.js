@@ -6,7 +6,7 @@ export default function handler(_req, res) {
   res.setHeader("Set-Cookie", buildStateCookie(state, { secure: true }));
   return res.redirect(
     buildAuthorizeUrl({
-      clientId: process.env.VITE_SPOTIFY_CLIENT_ID,
+      clientId: process.env.SPOTIFY_CLIENT_ID,
       redirectUri: process.env.REDIRECT_URI,
       state,
     }),

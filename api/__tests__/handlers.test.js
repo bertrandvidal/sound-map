@@ -36,7 +36,7 @@ afterEach(() => {
 
 describe("api/login", () => {
   beforeEach(() => {
-    vi.stubEnv("VITE_SPOTIFY_CLIENT_ID", "id");
+    vi.stubEnv("SPOTIFY_CLIENT_ID", "id");
     vi.stubEnv("REDIRECT_URI", "https://app.vercel.app/api/callback");
   });
 
@@ -68,7 +68,7 @@ describe("api/callback", () => {
     vi.restoreAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubEnv("COOKIE_ENCRYPTION_KEY", Buffer.alloc(32, 7).toString("base64"));
-    vi.stubEnv("VITE_SPOTIFY_CLIENT_ID", "id");
+    vi.stubEnv("SPOTIFY_CLIENT_ID", "id");
     vi.stubEnv("SPOTIFY_CLIENT_SECRET", "secret");
     vi.stubEnv("REDIRECT_URI", "https://app.vercel.app/api/callback");
     vi.stubEnv("FRONTEND_URL", "https://app.vercel.app");
@@ -153,7 +153,7 @@ describe("api/refresh", () => {
     vi.restoreAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubEnv("COOKIE_ENCRYPTION_KEY", Buffer.alloc(32, 7).toString("base64"));
-    vi.stubEnv("VITE_SPOTIFY_CLIENT_ID", "id");
+    vi.stubEnv("SPOTIFY_CLIENT_ID", "id");
     vi.stubEnv("SPOTIFY_CLIENT_SECRET", "secret");
   });
 

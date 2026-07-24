@@ -23,7 +23,7 @@ export default async function handler(req, res) {
 
   try {
     const { cookie } = await createSession(code, {
-      clientId: process.env.VITE_SPOTIFY_CLIENT_ID,
+      clientId: process.env.SPOTIFY_CLIENT_ID,
       clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
       redirectUri: process.env.REDIRECT_URI,
       secure: true,
