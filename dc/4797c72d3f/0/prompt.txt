@@ -1,0 +1,62 @@
+Let's run through @docs/superpowers/plans/2026-07-23-vercel-operator-setup.md
+
+---
+
+I've done all 3 steps but I cannot see the subdomain yet without deploying. Should we move B and C at the end?
+
+---
+
+https://sound-map-iota.vercel.app/
+
+---
+
+Done
+
+---
+
+Let's move on!
+
+---
+
+It's deployed
+
+---
+
+All good it's working
+
+---
+
+Success!
+
+---
+
+Ready! Available at http://localhost:3000
+
+---
+
+Added the vercel MCP server.
+
+---
+
+When running vercel dev I get a white page on http://localhost:3000/ and the follow error "10:33:16 AM [vite] Internal server error: Failed to parse source for import analysis because the content contains invalid JS syntax. You may need to install appropriate plugins to handle the .html file format, or if it's an asset, add "**/*.html" to `assetsInclude` in your configuration.
+  Plugin: vite:import-analysis
+  File: /Users/bert/github/sound-map/index.html:6:28
+  4  |      <meta charset="UTF-8" />
+  5  |      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  6  |      <title>sound-map</title>
+     |                              ^
+  7  |    </head>
+  8  |    <body>
+      at TransformPluginContext._formatLog (file:///Users/bert/github/sound-map/node_modules/vite/dist/node/chunks/node.js:30416:39)
+      at TransformPluginContext.error (file:///Users/bert/github/sound-map/node_modules/vite/dist/node/chunks/node.js:30413:14)
+      at TransformPluginContext.transform (file:///Users/bert/github/sound-map/node_modules/vite/dist/node/chunks/node.js:27402:10)
+      at async EnvironmentPluginContainer.transform (file:///Users/bert/github/sound-map/node_modules/vite/dist/node/chunks/node.js:30201:14)
+      at async loadAndTransform (file:///Users/bert/github/sound-map/node_modules/vite/dist/node/chunks/node.js:20124:26)"
+
+---
+
+The login page loads but when clicking the login button I get redirected to "http://127.0.0.1:3000/callback?REDACTED" which shows the login screen again and not the app
+
+---
+
+Update #6 so that you also check that all .env* file are consistent in term of which variables are in it. E.g. .env.local has a VERCEL_OIDC_TOKEN which others don't, .env.test only has VITE_SPOTIFY_CLIENT_ID
