@@ -1,0 +1,5 @@
+Inspect the current repository for security concerns and vulnerabilities. Classify them by severity and suggest a fix for each.
+
+---
+
+Also implement fix #4. Verify these would permits running in both prod (vercel) and locally. Then run me through Vuln 5 I don't understand it.
