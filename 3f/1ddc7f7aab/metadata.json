@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "3f1ddc7f7aab",
+  "strategy": "manual-commit",
+  "branch": "security-hardening",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/ci.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3f/1ddc7f7aab/0/metadata.json",
+      "transcript": "/3f/1ddc7f7aab/0/full.jsonl",
+      "compact_transcript": "/3f/1ddc7f7aab/0/transcript.jsonl",
+      "content_hash": "/3f/1ddc7f7aab/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 11,
+    "cache_creation_tokens": 8569,
+    "cache_read_tokens": 727522,
+    "output_tokens": 2894,
+    "api_call_count": 6
+  }
+}
