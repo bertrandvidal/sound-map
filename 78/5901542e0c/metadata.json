@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "785901542e0c",
+  "strategy": "manual-commit",
+  "branch": "landing-note-favicon-flow-diagram",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/spotify-login-flow.excalidraw"
+  ],
+  "sessions": [
+    {
+      "metadata": "/78/5901542e0c/0/metadata.json",
+      "transcript": "/78/5901542e0c/0/full.jsonl",
+      "compact_transcript": "/78/5901542e0c/0/transcript.jsonl",
+      "content_hash": "/78/5901542e0c/0/content_hash.txt",
+      "prompt": "/78/5901542e0c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 271,
+    "cache_creation_tokens": 157841,
+    "cache_read_tokens": 8802179,
+    "output_tokens": 80330,
+    "api_call_count": 96
+  }
+}
