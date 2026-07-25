@@ -17,12 +17,9 @@ describe("LandingPage", () => {
     expect(found).toBe(true);
   });
 
-  it("renders a Spotify login link and button", () => {
+  it("renders a login link to the server's /api/login and a button", () => {
     render(<LandingPage error={null} />);
-    expect(screen.getByRole("link")).toHaveAttribute(
-      "href",
-      expect.stringContaining("accounts.spotify.com/authorize"),
-    );
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/api/login");
     expect(
       screen.getByRole("button", { name: /log in with spotify/i }),
     ).toBeInTheDocument();
@@ -41,5 +38,10 @@ describe("LandingPage", () => {
   it("shows the login-failed message on token exchange failure", () => {
     render(<LandingPage error="token_exchange_failed" />);
     expect(screen.getByText(/login failed/i)).toBeInTheDocument();
+  });
+
+  it("shows a message when the OAuth state check fails", () => {
+    render(<LandingPage error="state_mismatch" />);
+    expect(screen.getByText(/could not be verified/i)).toBeInTheDocument();
   });
 });

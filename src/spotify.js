@@ -1,8 +1,3 @@
-const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
-if (!CLIENT_ID)
-  throw new Error("VITE_SPOTIFY_CLIENT_ID is not set — check your .env file");
-const SCOPE = "user-read-currently-playing user-modify-playback-state";
-
 const RATE_LIMITED_DEFAULT = "5";
 
 // Non-success Spotify response -> the Error we throw. Returns null for 2xx.
@@ -18,18 +13,6 @@ function spotifyError(response, overrides = {}) {
   };
   if (byStatus[response.status]) return byStatus[response.status]();
   return response.ok ? null : new Error(`SPOTIFY_ERROR:${response.status}`);
-}
-
-export function buildAuthUrl() {
-  const redirectUri =
-    import.meta.env.VITE_REDIRECT_URI ?? "http://127.0.0.1:3000/api/callback";
-  const params = new URLSearchParams({
-    client_id: CLIENT_ID,
-    response_type: "code",
-    redirect_uri: redirectUri,
-    scope: SCOPE,
-  });
-  return `https://accounts.spotify.com/authorize?${params}`;
 }
 
 export async function fetchCurrentlyPlaying(token) {

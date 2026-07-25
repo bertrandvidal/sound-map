@@ -1,6 +1,10 @@
 import { COOKIE_NAME, parseCookies, refreshSession } from "../server/auth.js";
 
 export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "method_not_allowed" });
+  }
+
   const sealed = parseCookies(req.headers.cookie)[COOKIE_NAME];
   if (!sealed) {
     return res.status(401).json({ error: "no_session" });
@@ -8,7 +12,7 @@ export default async function handler(req, res) {
 
   try {
     const { accessToken, expiresIn, cookie } = await refreshSession(sealed, {
-      clientId: process.env.VITE_SPOTIFY_CLIENT_ID,
+      clientId: process.env.SPOTIFY_CLIENT_ID,
       clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
       secure: true,
     });
