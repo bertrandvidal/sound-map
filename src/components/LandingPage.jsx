@@ -121,6 +121,22 @@ export default function LandingPage({ error }) {
             Log in with Spotify
           </button>
         </a>
+
+        {/* Playback controls go through Spotify's player endpoints, which the
+            Web API restricts to Premium accounts. Set expectations before the
+            user logs in rather than surfacing a 403 afterwards. */}
+        <p
+          style={{
+            position: "relative",
+            color: MUTED,
+            fontSize: "clamp(11px, 2.6vw, 13px)",
+            marginTop: 16,
+            maxWidth: 380,
+            opacity: 0.8,
+          }}
+        >
+          Some features may require a Spotify Premium account.
+        </p>
       </div>
     </div>
   );
