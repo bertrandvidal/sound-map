@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="sound-map (dev)">
+  <title>sound-map (dev)</title>
+  <!-- Same globe as production, deliberately re-coloured so a local tab is never
+       mistaken for the deployed app. Two independent signals so the difference
+       survives a 16px tab and colour-vision deficiency: the hue shifts green ->
+       amber, and the linework inverts from white to near-black. -->
+  <circle cx="32" cy="32" r="32" fill="#f5c542"/>
+  <g fill="none" stroke="#0a0a0a" stroke-width="3.2" stroke-linecap="round">
+    <circle cx="32" cy="32" r="19.5"/>
+    <ellipse cx="32" cy="32" rx="8.5" ry="19.5"/>
+    <path d="M14.5 25.5 Q32 31 49.5 25.5"/>
+    <path d="M12.5 32 H51.5"/>
+    <path d="M14.5 38.5 Q32 44 49.5 38.5"/>
+  </g>
+</svg>
