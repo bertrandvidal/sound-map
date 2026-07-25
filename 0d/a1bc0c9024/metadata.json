@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "0da1bc0c9024",
+  "strategy": "manual-commit",
+  "branch": "landing-note-favicon-flow-diagram",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "index.html",
+    "public/favicon-dev.svg",
+    "public/favicon.svg",
+    "src/__tests__/favicon.test.js",
+    "src/favicon.js",
+    "src/main.jsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0d/a1bc0c9024/0/metadata.json",
+      "transcript": "/0d/a1bc0c9024/0/full.jsonl",
+      "compact_transcript": "/0d/a1bc0c9024/0/transcript.jsonl",
+      "content_hash": "/0d/a1bc0c9024/0/content_hash.txt",
+      "prompt": "/0d/a1bc0c9024/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 269,
+    "cache_creation_tokens": 156751,
+    "cache_read_tokens": 8629676,
+    "output_tokens": 79333,
+    "api_call_count": 95
+  }
+}
