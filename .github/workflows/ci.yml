@@ -1,12 +1,21 @@
 name: CI
 
+# `push` is scoped to main so a PR branch does not trigger two runs of the same
+# commit: an unfiltered `push` fires on the branch ref while `pull_request`
+# fires on the merge ref, and the concurrency group below cannot dedupe them
+# because the two refs differ.
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
 
+# Superseded PR commits are worth cancelling; superseded main commits are not.
+# Every commit on main is deployed to production, so each one keeps its own
+# completed CI record rather than being cancelled by the next merge.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Least privilege by default. Only the coverage-comment job below re-requests
 # the pull-requests: write scope it needs — the build/test job runs installed
