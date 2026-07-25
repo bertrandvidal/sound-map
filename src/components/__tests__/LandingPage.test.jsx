@@ -25,6 +25,11 @@ describe("LandingPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("notes that some features may require a premium account", () => {
+    render(<LandingPage error={null} />);
+    expect(screen.getByText(/premium account/i)).toBeInTheDocument();
+  });
+
   it("shows the session-expired message", () => {
     render(<LandingPage error="session_expired" />);
     expect(screen.getByText(/session expired/i)).toBeInTheDocument();
