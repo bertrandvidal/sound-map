@@ -1,0 +1,9 @@
+Look at open PR by Dependabot. Figure out what's wrong and get them merged when everything is working as expected
+
+---
+
+I was able to confirm that. Each push to a PR results in 2 CI runs one for push one for pull-request. I assume this is because there @.github/workflows/ci.yml has both. I want CI to run when a PR is open/updated/re-opened and when something is merged to main, before vercel deploys. What are the change to make for that?
+
+---
+
+Make the push v pull_request change and then let's explore further. With the new ci changes there is no way code would reach main without being tested so running ci on main isn't bringing us more information since. Is that correct? Or does main need to be protected with a ci check and only allowing pushes from PRs?
