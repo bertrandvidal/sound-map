@@ -1,6 +1,41 @@
 version: 2
 updates:
-  - package-ecosystem: "npm" 
+  - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      # Packages with hard peer-dependency relationships must move together,
+      # including across majors. Dependabot resolves a group jointly — one
+      # branch, one lockfile resolution — so a bump that cannot install on its
+      # own still resolves alongside its peers. Ungrouped, react@19 could not
+      # be proposed at all (it conflicts with react-dom@18), and the separate
+      # react-dom and react-leaflet PRs both died at `npm ci` with ERESOLVE.
+      # This group deliberately omits `update-types` so majors stay included.
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "react-leaflet"
+          - "@react-leaflet/*"
+
+      # Everything else groups only minor/patch, so majors still arrive as
+      # individual PRs and stay individually reviewable.
+      dev-dependencies:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+      production-dependencies:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+
+  # Workflow actions are pinned (one to a commit SHA, for supply-chain safety),
+  # so nothing updates them unless Dependabot watches this ecosystem — a pinned
+  # action ages silently, including past security fixes.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
