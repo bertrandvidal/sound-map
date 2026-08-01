@@ -1,0 +1,1 @@
+Using agents implement docs/superpowers/plans/2026-08-01-library-explore-mode.md - for the Redis/Upstash I've already created the cluster. Let me know what info you need or what info I need to add to env files or use the vercel CLI to get that info
