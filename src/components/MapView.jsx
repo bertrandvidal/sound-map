@@ -11,6 +11,7 @@ import NowPlayingCard from "./NowPlayingCard.jsx";
 
 const POLL_MS = 5_000;
 const PACIFIC_FALLBACK = { lat: 0, lng: -160, placeName: "Unknown location" };
+const SCOPE_WARNING = "Log out and back in to enable Browse Library";
 
 export default function MapView({ token, onTokenExpired }) {
   const [track, setTrack] = useState(null);
@@ -36,17 +37,19 @@ export default function MapView({ token, onTokenExpired }) {
   }, []);
 
   // Surfaces a stale-scope 403 (a session authorized before `user-follow-read`
-  // was added — see the design doc's migration note) through the existing
-  // controlMessage channel rather than building a separate error-display
-  // path for it. Only sets the message; doesn't clear it on scopeMissing
-  // going false, since that's not really an intentional retry the user
-  // triggered here — runControl's own paths already own clearing
-  // controlMessage on their own success.
-  useEffect(() => {
-    if (scopeMissing) {
-      setControlMessage("Log out and back in to enable Browse Library");
-    }
-  }, [scopeMissing]);
+  // was added — see the design doc's migration note) alongside the existing
+  // transient controlMessage, without storing it in that same state. It's a
+  // *persistent* condition (stays true until the user re-logs-in) riding on
+  // a channel (`controlMessage`) that `runControl` unconditionally clears on
+  // every successful play/pause/skip/select — storing the warning there
+  // caused it to be silently wiped out by the next unrelated successful
+  // control action. Deriving it instead means there's no state for anything
+  // to clobber: a transient control error still wins while it's showing
+  // (matches existing single-message-slot UI), and the scope warning simply
+  // reappears on its own once that transient message clears, because
+  // `scopeMissing` itself hasn't changed.
+  const displayMessage =
+    controlMessage ?? (scopeMissing ? SCOPE_WARNING : null);
 
   // Fetch the currently-playing track and update state. Throws on API error so
   // callers (the poll loop and the control handlers) can apply their own
@@ -214,7 +217,7 @@ export default function MapView({ token, onTokenExpired }) {
           placeName={location?.placeName}
           onPlayPause={handlePlayPause}
           onNext={handleNext}
-          controlMessage={controlMessage}
+          controlMessage={displayMessage}
         />
       )}
       <LibraryLoadingBadge resolvedCount={resolvedCount} total={total} />

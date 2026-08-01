@@ -388,4 +388,57 @@ describe("MapView explore mode", () => {
       screen.queryByText("Log out and back in to enable Browse Library"),
     ).not.toBeInTheDocument();
   });
+
+  it("regression: the scope warning survives a subsequent SUCCESSFUL control action instead of being silently cleared", async () => {
+    useLibraryArtists.mockReturnValue({
+      artists: [],
+      resolvedCount: 0,
+      total: 0,
+      scopeMissing: true,
+    });
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(
+        screen.getByText("Log out and back in to enable Browse Library"),
+      ).toBeInTheDocument(),
+    );
+
+    // A successful, unrelated playback action (pause succeeds) must NOT
+    // erase the persistent scope warning — it isn't stored in the same
+    // transient controlMessage slot that runControl clears on success.
+    fireEvent.click(screen.getByText("play-pause"));
+    await waitFor(() => expect(pause).toHaveBeenCalledWith("t"));
+    expect(
+      screen.getByText("Log out and back in to enable Browse Library"),
+    ).toBeInTheDocument();
+  });
+
+  it("a transient playback error takes precedence over the scope warning while both apply", async () => {
+    useLibraryArtists.mockReturnValue({
+      artists: [],
+      resolvedCount: 0,
+      total: 0,
+      scopeMissing: true,
+    });
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    pause.mockRejectedValueOnce(new Error("PLAYBACK_UNAVAILABLE"));
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(
+        screen.getByText("Log out and back in to enable Browse Library"),
+      ).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByText("play-pause"));
+    await waitFor(() =>
+      expect(
+        screen.getByText("Playback control not available"),
+      ).toBeInTheDocument(),
+    );
+    // only one message slot is rendered — the transient one wins while it lasts
+    expect(
+      screen.queryByText("Log out and back in to enable Browse Library"),
+    ).not.toBeInTheDocument();
+  });
 });
