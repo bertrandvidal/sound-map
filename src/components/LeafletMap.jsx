@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import AlbumBubble from "./AlbumBubble.jsx";
+import ArtistClusterLayer from "./ArtistClusterLayer.jsx";
 
 function MapController({ location }) {
   const map = useMap();
@@ -13,7 +14,13 @@ function MapController({ location }) {
   return null;
 }
 
-export default function LeafletMap({ track, location }) {
+export default function LeafletMap({
+  track,
+  location,
+  exploreMode,
+  libraryArtists,
+  onSelectArtist,
+}) {
   return (
     <MapContainer
       center={[20, 0]}
@@ -24,7 +31,7 @@ export default function LeafletMap({ track, location }) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
-      {location && track && (
+      {!exploreMode && location && track && (
         <>
           <MapController location={location} />
           <AlbumBubble
@@ -34,6 +41,12 @@ export default function LeafletMap({ track, location }) {
             artistName={track.artistName}
           />
         </>
+      )}
+      {exploreMode && (
+        <ArtistClusterLayer
+          artists={libraryArtists}
+          onSelectArtist={onSelectArtist}
+        />
       )}
     </MapContainer>
   );
