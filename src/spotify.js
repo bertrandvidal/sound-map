@@ -42,12 +42,16 @@ export async function fetchCurrentlyPlaying(token) {
   };
 }
 
-async function playerCommand(method, command, token) {
+async function playerCommand(method, command, token, body) {
   const response = await fetch(
     `https://api.spotify.com/v1/me/player/${command}`,
     {
       method,
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(body ? { "Content-Type": "application/json" } : {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
     },
   );
   if (response.status === 204) return; // success (no body)
@@ -58,7 +62,13 @@ async function playerCommand(method, command, token) {
   if (err) throw err;
 }
 
-export const play = (token) => playerCommand("PUT", "play", token);
+export const play = (token, { contextUri } = {}) =>
+  playerCommand(
+    "PUT",
+    "play",
+    token,
+    contextUri ? { context_uri: contextUri } : undefined,
+  );
 export const pause = (token) => playerCommand("PUT", "pause", token);
 export const skipToNext = (token) => playerCommand("POST", "next", token);
 

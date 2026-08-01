@@ -177,6 +177,62 @@ describe("player controls (play / pause / skipToNext)", () => {
     stub({ status: 500, ok: false, headers: { get: () => null } });
     await expect(skipToNext("token")).rejects.toThrow("SPOTIFY_ERROR:500");
   });
+
+  it("play with no contextUri sends no body and no Content-Type header", async () => {
+    stub({ status: 204, ok: true, headers: { get: () => null } });
+    await play("token");
+    const callArgs = fetch.mock.calls[0];
+    const url = callArgs[0];
+    const init = callArgs[1];
+    expect(url).toBe("https://api.spotify.com/v1/me/player/play");
+    expect(init).toEqual({
+      method: "PUT",
+      headers: { Authorization: "Bearer token" },
+    });
+  });
+
+  it("play with contextUri sends body and Content-Type header", async () => {
+    stub({ status: 204, ok: true, headers: { get: () => null } });
+    await play("token", { contextUri: "spotify:artist:123" });
+    const callArgs = fetch.mock.calls[0];
+    const url = callArgs[0];
+    const init = callArgs[1];
+    expect(url).toBe("https://api.spotify.com/v1/me/player/play");
+    expect(init).toEqual({
+      method: "PUT",
+      headers: {
+        Authorization: "Bearer token",
+        "Content-Type": "application/json",
+      },
+      body: '{"context_uri":"spotify:artist:123"}',
+    });
+  });
+
+  it("pause does not send body or Content-Type header", async () => {
+    stub({ status: 204, ok: true, headers: { get: () => null } });
+    await pause("token");
+    const callArgs = fetch.mock.calls[0];
+    const init = callArgs[1];
+    expect(init).toEqual({
+      method: "PUT",
+      headers: { Authorization: "Bearer token" },
+    });
+    expect(init.body).toBeUndefined();
+    expect(init.headers["Content-Type"]).toBeUndefined();
+  });
+
+  it("skipToNext does not send body or Content-Type header", async () => {
+    stub({ status: 204, ok: true, headers: { get: () => null } });
+    await skipToNext("token");
+    const callArgs = fetch.mock.calls[0];
+    const init = callArgs[1];
+    expect(init).toEqual({
+      method: "POST",
+      headers: { Authorization: "Bearer token" },
+    });
+    expect(init.body).toBeUndefined();
+    expect(init.headers["Content-Type"]).toBeUndefined();
+  });
 });
 
 describe("fetchFollowedArtists", () => {
