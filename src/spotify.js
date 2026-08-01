@@ -61,3 +61,29 @@ async function playerCommand(method, command, token) {
 export const play = (token) => playerCommand("PUT", "play", token);
 export const pause = (token) => playerCommand("PUT", "pause", token);
 export const skipToNext = (token) => playerCommand("POST", "next", token);
+
+export async function fetchFollowedArtists(token) {
+  const artists = [];
+  let after;
+  do {
+    const url = new URL("https://api.spotify.com/v1/me/following");
+    url.searchParams.set("type", "artist");
+    url.searchParams.set("limit", "50");
+    if (after) url.searchParams.set("after", after);
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const err = spotifyError(response);
+    if (err) throw err;
+    const data = await response.json();
+    for (const a of data.artists.items) {
+      artists.push({
+        id: a.id,
+        name: a.name,
+        imageUrl: a.images[0]?.url ?? null,
+      });
+    }
+    after = data.artists.cursors.after ?? null;
+  } while (after);
+  return artists;
+}
