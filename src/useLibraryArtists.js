@@ -1,8 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchFollowedArtists } from "./spotify.js";
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+// Cancellable delay: rejects immediately (or as soon as `signal` aborts)
+// instead of resolving, so a stale throttled-retry timer never fires a
+// request for a loop whose effect has already been cleaned up.
+function delay(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const id = setTimeout(resolve, ms);
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(id);
+        reject(new DOMException("Aborted", "AbortError"));
+      },
+      { once: true },
+    );
+  });
 }
 
 // Sequential resolution loop, one in-flight /api/geocode call at a time. Runs
@@ -26,6 +43,13 @@ export function useLibraryArtists(token) {
     if (!token) return;
 
     let cancelled = false;
+    // One controller per effect run (i.e. per token). Its cleanup aborts
+    // whatever /api/geocode request is in flight and cancels any pending
+    // throttled-retry timer, so a token change (e.g. the routine
+    // TOKEN_EXPIRED refresh in MapView.jsx) can never leave a stale request
+    // racing the new loop's first request — at most one request is ever
+    // in flight across a token change.
+    const controller = new AbortController();
     const isLive = () => !cancelled && mountedRef.current;
 
     function updateArtist(id, patch) {
@@ -49,6 +73,7 @@ export function useLibraryArtists(token) {
               artistId: artist.id,
               artistName: artist.name,
             }),
+            signal: controller.signal,
           });
           // Non-200 (e.g. a raw 500 from an Upstash outage, or 401/400/405)
           // is treated as a resolution failure for this artist rather than
@@ -61,14 +86,21 @@ export function useLibraryArtists(token) {
             ? await response.json()
             : { status: "not_found" };
         } catch {
-          // Network failure: same treatment as a non-200 above.
+          // Covers both a genuine network failure (treated like a non-200
+          // above) and this request being aborted by cleanup on a token
+          // change — the isLive() check right below discards `result` in
+          // the abort case, so it never gets marked not_found or counted.
           result = { status: "not_found" };
         }
 
         if (!isLive()) return;
 
         if (result.status === "throttled") {
-          await delay(result.retryAfterMs);
+          try {
+            await delay(result.retryAfterMs, controller.signal);
+          } catch {
+            return; // aborted while waiting to retry — loop is dead, stop
+          }
           continue;
         }
 
@@ -116,6 +148,7 @@ export function useLibraryArtists(token) {
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [token]);
 
