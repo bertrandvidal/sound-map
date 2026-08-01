@@ -2,7 +2,10 @@ const USER_AGENT = "sound-map/0.1 (https://github.com/bertrandvidal/sound-map)";
 const MB_BASE = "https://musicbrainz.org/ws/2";
 const NOM_BASE = "https://nominatim.openstreetmap.org";
 
-export async function lookupArtistLocation(artistName) {
+export async function lookupArtistLocation(
+  artistName,
+  { acquireNominatimThrottle } = {},
+) {
   try {
     const mbUrl = `${MB_BASE}/artist/?query=artist:${encodeURIComponent(`"${artistName}"`)}&fmt=json`;
     const mbResponse = await fetch(mbUrl, {
@@ -21,6 +24,11 @@ export async function lookupArtistLocation(artistName) {
 
     const areaName = artist["begin-area"]?.name ?? artist.area?.name;
     if (!areaName) return null;
+
+    if (acquireNominatimThrottle) {
+      const granted = await acquireNominatimThrottle();
+      if (!granted) return "THROTTLED";
+    }
 
     const nomUrl = `${NOM_BASE}/search?q=${encodeURIComponent(areaName)}&format=json&limit=1`;
     const nomResponse = await fetch(nomUrl, {

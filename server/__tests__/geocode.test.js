@@ -115,3 +115,101 @@ describe("server/geocode - lookupArtistLocation", () => {
     expect(await lookupArtistLocation("Test Artist")).toBeNull();
   });
 });
+
+describe("server/geocode - lookupArtistLocation with acquireNominatimThrottle", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("calls acquireNominatimThrottle right before the Nominatim request and proceeds when granted", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            artists: [
+              { name: "Kendrick Lamar", "begin-area": { name: "Compton" } },
+            ],
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([{ lat: "33.8958", lon: "-118.2201" }]),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const acquireNominatimThrottle = vi.fn().mockResolvedValue(true);
+
+    const result = await lookupArtistLocation("Kendrick Lamar", {
+      acquireNominatimThrottle,
+    });
+
+    expect(result).toEqual({
+      lat: 33.8958,
+      lng: -118.2201,
+      placeName: "Compton",
+    });
+    expect(acquireNominatimThrottle).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns "THROTTLED" without calling Nominatim when acquireNominatimThrottle resolves false', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          artists: [{ name: "Test", "begin-area": { name: "Somewhere" } }],
+        }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const acquireNominatimThrottle = vi.fn().mockResolvedValue(false);
+
+    const result = await lookupArtistLocation("Test", {
+      acquireNominatimThrottle,
+    });
+
+    expect(result).toBe("THROTTLED");
+    expect(acquireNominatimThrottle).toHaveBeenCalledTimes(1);
+    // Only the MusicBrainz call happened; Nominatim was never reached.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call acquireNominatimThrottle when MusicBrainz finds no area (never reaches the Nominatim step)", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ artists: [{ name: "Test" }] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const acquireNominatimThrottle = vi.fn().mockResolvedValue(false);
+
+    const result = await lookupArtistLocation("Test", {
+      acquireNominatimThrottle,
+    });
+
+    expect(result).toBeNull();
+    expect(acquireNominatimThrottle).not.toHaveBeenCalled();
+  });
+
+  it("behaves exactly as the one-argument call when options is an empty object", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            artists: [{ name: "Test", area: { name: "London" } }],
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([{ lat: "51.5074", lon: "-0.1278" }]),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await lookupArtistLocation("Test", {})).toEqual({
+      lat: 51.5074,
+      lng: -0.1278,
+      placeName: "London",
+    });
+  });
+});
