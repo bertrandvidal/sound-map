@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "c6cca8168a71",
+  "strategy": "manual-commit",
+  "branch": "library-explore-mode",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/c6/cca8168a71/0/metadata.json",
+      "transcript": "/c6/cca8168a71/0/full.jsonl",
+      "compact_transcript": "/c6/cca8168a71/0/transcript.jsonl",
+      "content_hash": "/c6/cca8168a71/0/content_hash.txt",
+      "prompt": "/c6/cca8168a71/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 40,
+    "cache_creation_tokens": 36394,
+    "cache_read_tokens": 3350161,
+    "output_tokens": 24192,
+    "api_call_count": 20
+  }
+}

@@ -1,0 +1,16 @@
+<task-notification>
+<task-id>a6e13aa6ca0162b19</task-id>
+<tool-use-id>toolu_01NZdWbP2q5zZxgqCP21ZKN4</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-bert-github-sound-map/3bea0908-eb69-48cb-b2a6-4366cc4ac409/tasks/a6e13aa6ca0162b19.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement Task 10: wire MapView" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>- **Status:** DONE
+- Commits: `2f8cb0c` "Wire explore mode together in MapView", `e38cf46` "Fix scope warning being silently erased by unrelated playback success"
+- Full suite 200/200 passing, pristine output; `MapView.jsx` coverage: 95.74% stmts / 82.5% branches / 100% funcs (bar 90/75/100)
+- Fix: removed the `scopeMissing → controlMessage` effect entirely; the warning is now derived at render time (`controlMessage ?? (scopeMissing ? SCOPE_WARNING : null)`) instead of living in the state `runControl` clears on every successful action — no state left for a success to clobber
+- Added regression test (warning survives a subsequent successful control action) and a precedence test (transient playback error wins over the scope warning while both apply); both requested by the reviewer
+- Concerns: unchanged from before — the two minors (explore mode unreachable in idle/error states; scope warning only visible inside `NowPlayingCard`, gated on `track`) are deliberately deferred per instruction, not addressed this round
+- Report: `/Users/bert/github/sound-map/.superpowers/sdd/2026-08-01-library-explore-mode/task-10-report.md`</result>
+<usage><subagent_tokens>129061</subagent_tokens><tool_uses>18</tool_uses><duration_ms>124624</duration_ms></usage>
+</task-notification>
