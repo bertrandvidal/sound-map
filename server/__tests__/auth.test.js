@@ -294,7 +294,7 @@ describe("buildAuthorizeUrl", () => {
     expect(url).toContain("state=state-123");
     // URLSearchParams encodes the space between scopes as "+".
     expect(url).toContain(
-      "user-read-currently-playing+user-modify-playback-state",
+      "user-read-currently-playing+user-modify-playback-state+user-follow-read",
     );
     expect(url).toContain(
       encodeURIComponent("https://app.vercel.app/api/callback"),
