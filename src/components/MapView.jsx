@@ -3,7 +3,10 @@ import { devLog } from "../devLog.js";
 import { lookupArtistLocation } from "../geo.js";
 import { classifyPollError } from "../pollError.js";
 import { fetchCurrentlyPlaying, pause, play, skipToNext } from "../spotify.js";
+import { useLibraryArtists } from "../useLibraryArtists.js";
+import BrowseLibraryButton from "./BrowseLibraryButton.jsx";
 import LeafletMap from "./LeafletMap.jsx";
+import LibraryLoadingBadge from "./LibraryLoadingBadge.jsx";
 import NowPlayingCard from "./NowPlayingCard.jsx";
 
 const POLL_MS = 5_000;
@@ -14,9 +17,16 @@ export default function MapView({ token, onTokenExpired }) {
   const [location, setLocation] = useState(null);
   const [status, setStatus] = useState("loading");
   const [controlMessage, setControlMessage] = useState(null);
+  const [exploreMode, setExploreMode] = useState(false);
   const lastArtistRef = useRef(null);
   const refreshingRef = useRef(false);
   const mountedRef = useRef(true);
+
+  // Runs unconditionally from app boot regardless of exploreMode, per spec —
+  // the background resolution loop keeps the library pre-populated so
+  // explore mode is ready by the time the user opens it.
+  const { artists, resolvedCount, total, scopeMissing } =
+    useLibraryArtists(token);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -24,6 +34,19 @@ export default function MapView({ token, onTokenExpired }) {
       mountedRef.current = false;
     };
   }, []);
+
+  // Surfaces a stale-scope 403 (a session authorized before `user-follow-read`
+  // was added — see the design doc's migration note) through the existing
+  // controlMessage channel rather than building a separate error-display
+  // path for it. Only sets the message; doesn't clear it on scopeMissing
+  // going false, since that's not really an intentional retry the user
+  // triggered here — runControl's own paths already own clearing
+  // controlMessage on their own success.
+  useEffect(() => {
+    if (scopeMissing) {
+      setControlMessage("Log out and back in to enable Browse Library");
+    }
+  }, [scopeMissing]);
 
   // Fetch the currently-playing track and update state. Throws on API error so
   // callers (the poll loop and the control handlers) can apply their own
@@ -131,6 +154,18 @@ export default function MapView({ token, onTokenExpired }) {
     syncNowPlaying().catch(() => {});
   }
 
+  // Starts playback of the selected library artist. Routes through the
+  // existing runControl helper (TOKEN_EXPIRED -> refresh, other errors ->
+  // controlMessage) rather than duplicating that handling here.
+  // Deliberately does NOT change exploreMode: selecting an artist stays on
+  // the clustered library view — NowPlayingCard already reflects playback
+  // regardless of exploreMode, so there's no "switch back" transition.
+  async function handleSelectArtist(artist) {
+    await runControl(() =>
+      play(token, { contextUri: `spotify:artist:${artist.id}` }),
+    );
+  }
+
   if (status === "idle") {
     return (
       <div
@@ -166,7 +201,13 @@ export default function MapView({ token, onTokenExpired }) {
   // renders for 'loading' (initial) and 'playing' — LeafletMap handles null track/location
   return (
     <div style={{ position: "relative", height: "100vh", width: "100%" }}>
-      <LeafletMap track={track} location={location} />
+      <LeafletMap
+        track={track}
+        location={location}
+        exploreMode={exploreMode}
+        libraryArtists={artists}
+        onSelectArtist={handleSelectArtist}
+      />
       {track && (
         <NowPlayingCard
           track={track}
@@ -176,6 +217,11 @@ export default function MapView({ token, onTokenExpired }) {
           controlMessage={controlMessage}
         />
       )}
+      <LibraryLoadingBadge resolvedCount={resolvedCount} total={total} />
+      <BrowseLibraryButton
+        exploreMode={exploreMode}
+        onToggle={() => setExploreMode((v) => !v)}
+      />
     </div>
   );
 }

@@ -10,8 +10,28 @@ vi.mock("../../spotify.js", () => ({
   pause: vi.fn().mockResolvedValue(undefined),
   skipToNext: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("../../useLibraryArtists.js", () => ({
+  useLibraryArtists: vi.fn(),
+}));
 vi.mock("../LeafletMap.jsx", () => ({
-  default: () => <div data-testid="leaflet-map" />,
+  default: ({ exploreMode, libraryArtists, onSelectArtist }) => (
+    <div
+      data-testid="leaflet-map"
+      data-explore-mode={exploreMode ? "true" : "false"}
+    >
+      <span data-testid="library-artist-count">
+        {(libraryArtists ?? []).length}
+      </span>
+      {exploreMode && (
+        <button
+          type="button"
+          onClick={() => onSelectArtist({ id: "artist-1" })}
+        >
+          select-artist
+        </button>
+      )}
+    </div>
+  ),
 }));
 vi.mock("../NowPlayingCard.jsx", () => ({
   default: ({ onPlayPause, onNext, controlMessage }) => (
@@ -26,6 +46,24 @@ vi.mock("../NowPlayingCard.jsx", () => ({
     </div>
   ),
 }));
+vi.mock("../BrowseLibraryButton.jsx", () => ({
+  default: ({ exploreMode, onToggle }) => (
+    <button
+      type="button"
+      data-testid="browse-library-button"
+      onClick={onToggle}
+    >
+      {exploreMode ? "explore-mode-on" : "explore-mode-off"}
+    </button>
+  ),
+}));
+vi.mock("../LibraryLoadingBadge.jsx", () => ({
+  default: ({ resolvedCount, total }) => (
+    <div data-testid="library-loading-badge">
+      {resolvedCount}/{total}
+    </div>
+  ),
+}));
 
 import { lookupArtistLocation } from "../../geo.js";
 import {
@@ -34,6 +72,7 @@ import {
   play,
   skipToNext,
 } from "../../spotify.js";
+import { useLibraryArtists } from "../../useLibraryArtists.js";
 import MapView from "../MapView.jsx";
 
 const PLAYING_TRACK = {
@@ -52,6 +91,12 @@ describe("MapView poll loop", () => {
     vi.restoreAllMocks();
     vi.spyOn(console, "info").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
+    useLibraryArtists.mockReturnValue({
+      artists: [],
+      resolvedCount: 0,
+      total: 0,
+      scopeMissing: false,
+    });
   });
 
   it("refreshes (does not log out) when a poll returns 401", async () => {
@@ -192,5 +237,155 @@ describe("MapView poll loop", () => {
     );
     fireEvent.click(screen.getByText("play-pause"));
     await waitFor(() => expect(onTokenExpired).toHaveBeenCalled());
+  });
+});
+
+describe("MapView explore mode", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    useLibraryArtists.mockReturnValue({
+      artists: [],
+      resolvedCount: 0,
+      total: 0,
+      scopeMissing: false,
+    });
+  });
+
+  it("toggles exploreMode via BrowseLibraryButton and swaps LeafletMap into the clustered library view", async () => {
+    useLibraryArtists.mockReturnValue({
+      artists: [
+        { id: "a1", name: "Artist One", status: "resolved" },
+        { id: "a2", name: "Artist Two", status: "resolved" },
+      ],
+      resolvedCount: 2,
+      total: 2,
+      scopeMissing: false,
+    });
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("leaflet-map")).toHaveAttribute(
+        "data-explore-mode",
+        "false",
+      ),
+    );
+
+    fireEvent.click(screen.getByTestId("browse-library-button"));
+    expect(screen.getByTestId("leaflet-map")).toHaveAttribute(
+      "data-explore-mode",
+      "true",
+    );
+    // the artists returned by useLibraryArtists flow through as libraryArtists
+    expect(screen.getByTestId("library-artist-count")).toHaveTextContent("2");
+
+    fireEvent.click(screen.getByTestId("browse-library-button"));
+    expect(screen.getByTestId("leaflet-map")).toHaveAttribute(
+      "data-explore-mode",
+      "false",
+    );
+  });
+
+  it("passes resolvedCount/total from useLibraryArtists to LibraryLoadingBadge", async () => {
+    useLibraryArtists.mockReturnValue({
+      artists: [],
+      resolvedCount: 3,
+      total: 10,
+      scopeMissing: false,
+    });
+    fetchCurrentlyPlaying.mockResolvedValue(null);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("library-loading-badge")).toHaveTextContent(
+        "3/10",
+      ),
+    );
+  });
+
+  it("selecting an artist plays it via runControl using the artist's context_uri", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("leaflet-map")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId("browse-library-button"));
+    fireEvent.click(screen.getByText("select-artist"));
+
+    await waitFor(() =>
+      expect(play).toHaveBeenCalledWith("t", {
+        contextUri: "spotify:artist:artist-1",
+      }),
+    );
+  });
+
+  it("routes a failed artist selection through runControl's existing TOKEN_EXPIRED refresh path", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    play.mockRejectedValueOnce(new Error("TOKEN_EXPIRED"));
+    const onTokenExpired = vi.fn().mockResolvedValue(undefined);
+    render(<MapView token="t" onTokenExpired={onTokenExpired} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("leaflet-map")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId("browse-library-button"));
+    fireEvent.click(screen.getByText("select-artist"));
+
+    await waitFor(() => expect(onTokenExpired).toHaveBeenCalled());
+  });
+
+  it("regression: stays in explore mode after selecting an artist (no auto switch back to now-playing)", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("leaflet-map")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId("browse-library-button"));
+    expect(screen.getByTestId("leaflet-map")).toHaveAttribute(
+      "data-explore-mode",
+      "true",
+    );
+
+    fireEvent.click(screen.getByText("select-artist"));
+    await waitFor(() => expect(play).toHaveBeenCalled());
+
+    // exploreMode must still be true — selection starts playback but does
+    // not leave the clustered library view.
+    expect(screen.getByTestId("leaflet-map")).toHaveAttribute(
+      "data-explore-mode",
+      "true",
+    );
+  });
+
+  it("surfaces a stale-scope 403 (scopeMissing) through the existing control-message channel", async () => {
+    useLibraryArtists.mockReturnValue({
+      artists: [],
+      resolvedCount: 0,
+      total: 0,
+      scopeMissing: true,
+    });
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Log out and back in to enable Browse Library"),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("does not show a control message when scopeMissing is false", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-card")).toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByText("Log out and back in to enable Browse Library"),
+    ).not.toBeInTheDocument();
   });
 });
