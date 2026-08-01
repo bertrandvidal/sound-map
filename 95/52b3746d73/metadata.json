@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "9552b3746d73",
+  "strategy": "manual-commit",
+  "branch": "library-explore-mode",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/components/BrowseLibraryButton.jsx",
+    "src/components/LibraryLoadingBadge.jsx",
+    "src/components/__tests__/BrowseLibraryButton.test.jsx",
+    "src/components/__tests__/LibraryLoadingBadge.test.jsx",
+    "src/components/libraryLoadingBadge.css"
+  ],
+  "sessions": [
+    {
+      "metadata": "/95/52b3746d73/0/metadata.json",
+      "transcript": "/95/52b3746d73/0/full.jsonl",
+      "compact_transcript": "/95/52b3746d73/0/transcript.jsonl",
+      "content_hash": "/95/52b3746d73/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
