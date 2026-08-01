@@ -316,13 +316,42 @@ and parses them back on `get` — confirm this against the installed version's
 docs during implementation; if it does NOT auto-parse, add explicit
 `JSON.stringify`/`JSON.parse` in `setCachedArtist`/`getCachedArtist`.
 
-- [ ] **Step 4: Run tests, biome, commit**
+- [ ] **Step 4: Cover `createRedisClient` itself**
+
+The per-file coverage bar (`vite.config.js`: functions 100) applies to
+`createRedisClient` too, but calling it for real would invoke
+`Redis.fromEnv()`, which throws without real `KV_REST_API_URL`/
+`KV_REST_API_TOKEN` env vars — and this repo's tests must never depend on
+real credentials (see the Global Constraints note on dependency injection).
+Mock the module instead:
+
+```js
+vi.mock("@upstash/redis", () => ({
+  Redis: { fromEnv: vi.fn(() => "fake-client") },
+}));
+```
+
+Then assert `createRedisClient()` calls `Redis.fromEnv()` and returns its
+result. This is the only place in the new code that touches the
+`@upstash/redis` import directly — every other function takes `redis` as a
+parameter, so nothing else needs this treatment.
+
+- [ ] **Step 5: Confirm no `.env.test` changes are needed**
+
+`Redis.fromEnv()` is only ever called lazily inside `createRedisClient()`,
+which nothing in this test suite invokes unmocked (Step 4 mocks the module;
+every other test injects a fake `redis` object directly) — so no env vars
+are read at import time or at test time. Run `npm test` and confirm it's
+still green with `.env.test` unchanged; this task should need no edits to
+that file.
+
+- [ ] **Step 6: Run tests, biome, commit**
 
 ```bash
 npx vitest run server/__tests__/kv.test.js
 npx biome check --write server/kv.js
 git add package.json package-lock.json server/kv.js server/__tests__/kv.test.js
-git commit   # Why: explore mode needs a shared cache + distributed rate limiter; How: Redis(Upstash) wrapper, SET NX PX for the throttle lock; Tests: mocked redis client, no real credentials
+git commit   # Why: explore mode needs a shared cache + distributed rate limiter, fully isolated from real Upstash in tests; How: Redis(Upstash) wrapper, SET NX PX for the throttle lock, mocked @upstash/redis for createRedisClient's own coverage; Tests: mocked redis client throughout, no real credentials
 ```
 
 ---
