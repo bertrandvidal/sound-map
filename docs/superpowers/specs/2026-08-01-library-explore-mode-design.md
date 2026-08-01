@@ -272,6 +272,21 @@ the `play()` signature change), routed through `MapView`'s existing
 `runControl`/`refreshToken` error handling so a `TOKEN_EXPIRED` mid-explore
 behaves the same as it does for the transport controls today.
 
+There is no separate "which track" decision on our side: a `context_uri` of
+`spotify:artist:{id}` is exactly what Spotify's own clients send when you hit
+"Play" on an artist's profile page — Spotify's server picks the track
+sequence (a shuffle-style run through that artist's popular tracks), not us.
+
+**The app stays in explore mode after the click** — it does not auto-switch
+back to "now playing" mode. `NowPlayingCard` (top-right) is always rendered
+regardless of `exploreMode` and reflects the new track within one poll cycle,
+so there's no need to leave the map view to see what started playing.
+Explore mode is meant to be browsed — clicking one artist and then another in
+sequence is the expected flow, not a one-shot picker that dumps you back into
+single-marker mode. (The now-playing `flyTo`/`AlbumBubble` marker stays
+suppressed throughout, per the `!exploreMode` gate in `LeafletMap` — clicking
+around in explore mode never fights with it.)
+
 ## `play()` gains an optional body
 
 Spotify's `PUT /me/player/play` accepts `context_uri` (album/artist/playlist)

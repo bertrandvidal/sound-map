@@ -660,6 +660,11 @@ git commit   # Why: explore mode's map layer; How: react-leaflet-cluster + theme
   `exploreMode` — per spec, it reflects playback state regardless of view).
 - `onSelectArtist(artist)` calls `runControl(() => play(token, { contextUri: `spotify:artist:${artist.id}` }))` (the existing helper already handles
   `TOKEN_EXPIRED` → refresh and other errors → `controlMessage`).
+- `onSelectArtist` does **not** change `exploreMode` — selecting an artist
+  starts playback but stays on the clustered library view. `NowPlayingCard`
+  already renders regardless of `exploreMode`, so the new track is visible
+  top-right without leaving explore mode; there is no "switch to listening
+  mode" transition to build.
 
 - [ ] **Step 1: Write/extend tests**
 
@@ -669,7 +674,9 @@ Add cases to `MapView.test.jsx`: clicking `BrowseLibraryButton` toggles
 `react-leaflet`/child components — check the current mocking approach first);
 `LibraryLoadingBadge` receives `resolvedCount`/`total` from the (mocked)
 `useLibraryArtists`; selecting an artist calls `play` with the right
-`context_uri` via `runControl`'s existing error paths.
+`context_uri` via `runControl`'s existing error paths; **and** selecting an
+artist while `exploreMode` is `true` leaves it `true` afterward (regression
+test for "stays in explore mode after click" — see spec).
 
 - [ ] **Step 2: Implement the wiring**
 
