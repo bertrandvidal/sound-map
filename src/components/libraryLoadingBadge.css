@@ -1,0 +1,21 @@
+/* Calm "working" breath for the library-loading badge (see LibraryLoadingBadge.jsx). */
+@keyframes library-loading-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.library-loading-badge {
+  animation: library-loading-pulse 2.2s ease-in-out infinite;
+}
+
+/* Respect reduced-motion users: an always-visible, non-animated badge is the correct fallback. */
+@media (prefers-reduced-motion: reduce) {
+  .library-loading-badge {
+    animation: none;
+  }
+}

@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchCurrentlyPlaying, pause, play, skipToNext } from "../spotify.js";
+import {
+  fetchCurrentlyPlaying,
+  fetchFollowedArtists,
+  pause,
+  play,
+  skipToNext,
+} from "../spotify.js";
 
 describe("fetchCurrentlyPlaying", () => {
   beforeEach(() => {
@@ -170,5 +176,210 @@ describe("player controls (play / pause / skipToNext)", () => {
   it("throws SPOTIFY_ERROR on unexpected HTTP status (e.g. 500)", async () => {
     stub({ status: 500, ok: false, headers: { get: () => null } });
     await expect(skipToNext("token")).rejects.toThrow("SPOTIFY_ERROR:500");
+  });
+
+  it("play with no contextUri sends no body and no Content-Type header", async () => {
+    stub({ status: 204, ok: true, headers: { get: () => null } });
+    await play("token");
+    const callArgs = fetch.mock.calls[0];
+    const url = callArgs[0];
+    const init = callArgs[1];
+    expect(url).toBe("https://api.spotify.com/v1/me/player/play");
+    expect(init).toEqual({
+      method: "PUT",
+      headers: { Authorization: "Bearer token" },
+    });
+  });
+
+  it("play with contextUri sends body and Content-Type header", async () => {
+    stub({ status: 204, ok: true, headers: { get: () => null } });
+    await play("token", { contextUri: "spotify:artist:123" });
+    const callArgs = fetch.mock.calls[0];
+    const url = callArgs[0];
+    const init = callArgs[1];
+    expect(url).toBe("https://api.spotify.com/v1/me/player/play");
+    expect(init).toEqual({
+      method: "PUT",
+      headers: {
+        Authorization: "Bearer token",
+        "Content-Type": "application/json",
+      },
+      body: '{"context_uri":"spotify:artist:123"}',
+    });
+  });
+
+  it("pause does not send body or Content-Type header", async () => {
+    stub({ status: 204, ok: true, headers: { get: () => null } });
+    await pause("token");
+    const callArgs = fetch.mock.calls[0];
+    const init = callArgs[1];
+    expect(init).toEqual({
+      method: "PUT",
+      headers: { Authorization: "Bearer token" },
+    });
+    expect(init.body).toBeUndefined();
+    expect(init.headers["Content-Type"]).toBeUndefined();
+  });
+
+  it("skipToNext does not send body or Content-Type header", async () => {
+    stub({ status: 204, ok: true, headers: { get: () => null } });
+    await skipToNext("token");
+    const callArgs = fetch.mock.calls[0];
+    const init = callArgs[1];
+    expect(init).toEqual({
+      method: "POST",
+      headers: { Authorization: "Bearer token" },
+    });
+    expect(init.body).toBeUndefined();
+    expect(init.headers["Content-Type"]).toBeUndefined();
+  });
+});
+
+describe("fetchFollowedArtists", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns a single page of followed artists when after is null", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        headers: { get: () => null },
+        json: () =>
+          Promise.resolve({
+            artists: {
+              items: [
+                {
+                  id: "artist-1",
+                  name: "Artist One",
+                  images: [{ url: "https://example.com/artist1.jpg" }],
+                },
+                {
+                  id: "artist-2",
+                  name: "Artist Two",
+                  images: [],
+                },
+              ],
+              cursors: { after: null },
+            },
+          }),
+      }),
+    );
+    const result = await fetchFollowedArtists("token");
+    expect(result).toEqual([
+      {
+        id: "artist-1",
+        name: "Artist One",
+        imageUrl: "https://example.com/artist1.jpg",
+      },
+      { id: "artist-2", name: "Artist Two", imageUrl: null },
+    ]);
+  });
+
+  it("paginates through multiple pages of followed artists", async () => {
+    const mockFetch = vi.fn();
+    vi.stubGlobal("fetch", mockFetch);
+
+    // First page
+    mockFetch.mockResolvedValueOnce({
+      status: 200,
+      ok: true,
+      headers: { get: () => null },
+      json: () =>
+        Promise.resolve({
+          artists: {
+            items: [
+              {
+                id: "artist-1",
+                name: "Artist One",
+                images: [{ url: "https://example.com/artist1.jpg" }],
+              },
+            ],
+            cursors: { after: "cursor-page-1" },
+          },
+        }),
+    });
+
+    // Second page
+    mockFetch.mockResolvedValueOnce({
+      status: 200,
+      ok: true,
+      headers: { get: () => null },
+      json: () =>
+        Promise.resolve({
+          artists: {
+            items: [
+              {
+                id: "artist-2",
+                name: "Artist Two",
+                images: [{ url: "https://example.com/artist2.jpg" }],
+              },
+            ],
+            cursors: { after: null },
+          },
+        }),
+    });
+
+    const result = await fetchFollowedArtists("token");
+    expect(result).toEqual([
+      {
+        id: "artist-1",
+        name: "Artist One",
+        imageUrl: "https://example.com/artist1.jpg",
+      },
+      {
+        id: "artist-2",
+        name: "Artist Two",
+        imageUrl: "https://example.com/artist2.jpg",
+      },
+    ]);
+
+    // Verify second call includes the after cursor
+    const secondCall = mockFetch.mock.calls[1][0];
+    expect(secondCall.toString()).toContain("after=cursor-page-1");
+  });
+
+  it("throws TOKEN_EXPIRED on HTTP 401", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 401,
+        ok: false,
+        headers: { get: () => null },
+      }),
+    );
+    await expect(fetchFollowedArtists("token")).rejects.toThrow(
+      "TOKEN_EXPIRED",
+    );
+  });
+
+  it("throws RATE_LIMITED with retry seconds on HTTP 429", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 429,
+        ok: false,
+        headers: { get: () => "15" },
+      }),
+    );
+    await expect(fetchFollowedArtists("token")).rejects.toThrow(
+      "RATE_LIMITED:15",
+    );
+  });
+
+  it("throws SPOTIFY_ERROR on HTTP 403 (stale pre-scope session)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 403,
+        ok: false,
+        headers: { get: () => null },
+      }),
+    );
+    await expect(fetchFollowedArtists("token")).rejects.toThrow(
+      "SPOTIFY_ERROR:403",
+    );
   });
 });

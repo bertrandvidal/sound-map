@@ -2,7 +2,8 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
 const SPOTIFY_AUTHORIZE_URL = "https://accounts.spotify.com/authorize";
-const OAUTH_SCOPE = "user-read-currently-playing user-modify-playback-state";
+const OAUTH_SCOPE =
+  "user-read-currently-playing user-modify-playback-state user-follow-read";
 
 export const COOKIE_NAME = "rt";
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days, in seconds

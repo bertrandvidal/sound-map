@@ -24,6 +24,8 @@ export default defineConfig({
         "src/main.jsx", // React DOM entry point (createRoot+render); no logic
         "src/components/LeafletMap.jsx", // react-leaflet wrapper; needs real canvas/map sizing jsdom lacks
         "src/components/AlbumBubble.jsx", // builds a Leaflet divIcon + Popup; same canvas/DOM constraint
+        "src/components/ArtistMarker.jsx", // builds a Leaflet divIcon; same canvas/DOM constraint as AlbumBubble
+        "src/components/ArtistClusterLayer.jsx", // wraps react-leaflet-cluster; needs real map sizing jsdom lacks
       ],
       thresholds: {
         // One strict bar, applied to every included file individually. New

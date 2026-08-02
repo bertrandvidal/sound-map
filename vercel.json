@@ -3,6 +3,7 @@
   "git": {
     "deploymentEnabled": {
       "entire/**": false,
+      "entire*": false,
       "dependabot/**": false
     }
   }

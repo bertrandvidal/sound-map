@@ -30,6 +30,7 @@ plus the `/api/*` serverless functions on a single origin
 - **`api/login.js`, `api/callback.js`, `api/refresh.js`, `api/logout.js`** — Vercel serverless functions handling OAuth. They are thin adapters that delegate all logic to `server/auth.js`. `/api/login` mints a one-time CSRF `state` (HttpOnly `oauth_state` cookie) and redirects to Spotify; `/api/callback` verifies it before exchanging the code. `/api/refresh` and `/api/logout` are POST-only.
 - **`server/auth.js`** — framework-agnostic auth core: AES-256-GCM seal/open of the session payload `{ rt, iat }` (the `iat` enforces the 30-day session lifetime server-side), `createSession`/`refreshSession`, the authorize-URL builder, and the session/state cookie builders. The Client Secret is used here (server-only), never in the browser.
 - **`src/`** — Vite + React SPA. `App.jsx` bootstraps by calling `refreshAccessToken()` (→ `POST /api/refresh`), which exchanges the encrypted `rt` session cookie for a short-lived access token held in React state and passed down to `MapView`.
+- **`api/geocode.js`** — Vercel serverless function backing explore mode. Session-gated by checking for the `rt` cookie's *presence* only (no decryption — it never needs the access token itself); delegates the actual lookup to `server/geocode.js` and `server/kv.js`.
 
 ### Data flow
 
@@ -45,24 +46,48 @@ MapView (polls every few seconds via fetchCurrentlyPlaying)
   → LeafletMap → AlbumBubble (marker at artist's origin)
 ```
 
+Explore mode overlays a second, independent flow: `useLibraryArtists` runs a
+background resolution loop from app boot (regardless of whether explore mode
+is showing), keyed on the access token — it fetches the user's followed
+artists, then walks them one at a time through `POST /api/geocode`, which is
+cached and globally rate-limited in Redis. `BrowseLibraryButton` toggles
+`exploreMode`; `LeafletMap` uses that flag to swap its marker layer between
+the now-playing bubble and `ArtistClusterLayer`'s clustered view of resolved
+library artists, with `LibraryLoadingBadge` showing a `resolvedCount/total`
+pill until resolution catches up. Clicking a clustered artist marker starts
+that artist's playback via `play(token, { contextUri })` and stays in
+explore mode — there's no auto-switch back to now-playing.
+
 **`src/spotify.js`** — Spotify Web API client: `fetchCurrentlyPlaying(token)` (polls `/me/player/currently-playing`) plus the `play`/`pause`/`skipToNext` player controls. Throws structured errors: `TOKEN_EXPIRED`, `RATE_LIMITED:<seconds>`, `SPOTIFY_ERROR:<status>`. `MapView` handles all three cases. Login starts at the server's `/api/login`, not here.
 
 **`src/geo.js`** — `lookupArtistLocation(artistName)` queries MusicBrainz for the artist's `begin-area` or `area`, then resolves it to lat/lng via Nominatim. Returns `null` on any failure; `MapView` maps `null` to the Pacific Ocean fallback `{ lat: 0, lng: -160 }` rather than leaving the marker at the previous artist's location.
 
 **`src/components/LeafletMap.jsx`** — wraps `react-leaflet`. `MapController` is an inner component that calls `map.flyTo()` imperatively (the only way to trigger Leaflet animations from React state changes). `AlbumBubble` uses a `L.divIcon` with a circular `<img>` as the marker.
 
+**`src/useLibraryArtists.js`** — the explore-mode resolution loop described above: `fetchFollowedArtists` (`GET /me/following?type=artist`, needs the `user-follow-read` scope) then a sequential, one-in-flight-at-a-time walk over `POST /api/geocode`, retrying `throttled` responses after the server-supplied `retryAfterMs`.
+
+**`server/geocode.js`** — `lookupArtistLocation(artistName)`, the server-side counterpart to `src/geo.js` (same MusicBrainz → Nominatim strategy), written to accept an `acquireNominatimThrottle` callback so the caller can rate-limit the second hop independently of the first.
+
+**`server/kv.js`** — Redis cache (`geo:<artistId>`, `not_found` results cached 30 days, `resolved` results cached 180 days — long enough to be effective, bounded so a bad fuzzy-match MusicBrainz result doesn't stick forever) and throttle lock (`throttle:<service>`, via `SET NX PX`) backing `api/geocode.js`. Constructs the `Redis` client explicitly against `REDIS_KV_REST_API_URL`/`REDIS_KV_REST_API_TOKEN` — **not** `Redis.fromEnv()`, which doesn't recognize the `REDIS_`-prefixed names the Vercel Marketplace Upstash integration injects (see `.env.example`).
+
 ### Environment variables
 
-`.env` at repo root (gitignored) — copy from `.env.example`, which documents all
-five variables:
+`.env` at repo root (gitignored) — copy from `.env.example`, which documents six
+variables:
 ```
 SPOTIFY_CLIENT_ID        # Spotify app id; read server-side by /api/login
 SPOTIFY_CLIENT_SECRET    # server-only; never in client code
 COOKIE_ENCRYPTION_KEY    # 32 bytes, base64 — openssl rand -base64 32
 REDIRECT_URI             # http://127.0.0.1:3000/api/callback (local)
 FRONTEND_URL             # http://127.0.0.1:3000 (local); callback redirects here
+GEOCODE_MIN_INTERVAL_MS  # min ms between MusicBrainz/Nominatim calls (default 1100)
 ```
-`vercel dev` also reads `VERCEL_OIDC_TOKEN` from `.env.local` (auto-managed).
+`vercel dev` also reads `VERCEL_OIDC_TOKEN` from `.env.local` (auto-managed),
+and `REDIS_KV_REST_API_URL`/`REDIS_KV_REST_API_TOKEN` (the Upstash cache/
+throttle backing explore mode, see `server/kv.js`) — both are injected by the
+Vercel Marketplace Upstash integration and pulled via `vercel env pull`
+rather than set by hand. `Redis.fromEnv()` does **not** work here; see
+`.env.example` for why.
 
 ## Spotify API rules
 

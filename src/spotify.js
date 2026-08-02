@@ -42,12 +42,16 @@ export async function fetchCurrentlyPlaying(token) {
   };
 }
 
-async function playerCommand(method, command, token) {
+async function playerCommand(method, command, token, body) {
   const response = await fetch(
     `https://api.spotify.com/v1/me/player/${command}`,
     {
       method,
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(body ? { "Content-Type": "application/json" } : {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
     },
   );
   if (response.status === 204) return; // success (no body)
@@ -58,6 +62,38 @@ async function playerCommand(method, command, token) {
   if (err) throw err;
 }
 
-export const play = (token) => playerCommand("PUT", "play", token);
+export const play = (token, { contextUri } = {}) =>
+  playerCommand(
+    "PUT",
+    "play",
+    token,
+    contextUri ? { context_uri: contextUri } : undefined,
+  );
 export const pause = (token) => playerCommand("PUT", "pause", token);
 export const skipToNext = (token) => playerCommand("POST", "next", token);
+
+export async function fetchFollowedArtists(token) {
+  const artists = [];
+  let after;
+  do {
+    const url = new URL("https://api.spotify.com/v1/me/following");
+    url.searchParams.set("type", "artist");
+    url.searchParams.set("limit", "50");
+    if (after) url.searchParams.set("after", after);
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const err = spotifyError(response);
+    if (err) throw err;
+    const data = await response.json();
+    for (const a of data.artists.items) {
+      artists.push({
+        id: a.id,
+        name: a.name,
+        imageUrl: a.images[0]?.url ?? null,
+      });
+    }
+    after = data.artists.cursors.after ?? null;
+  } while (after);
+  return artists;
+}
