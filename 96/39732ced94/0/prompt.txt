@@ -1,0 +1,32 @@
+<task-notification>
+<task-id>a4d1fc681ac8dda53</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-bert-github-sound-map/3bea0908-eb69-48cb-b2a6-4366cc4ac409/tasks/a4d1fc681ac8dda53.output</output-file>
+<status>completed</status>
+<summary>Agent "Final review fixes + hover tooltip" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Everything verifies cleanly. Report appended.
+
+**Status:** DONE
+
+Commits created this wave:
+- `aee4b57` Close Finding 3 for real, and fix four regressions the reachability fix introduced
+- `87eb11d` Fix two factual errors in the deployment README
+
+`npm test`: 23 files / 219 tests passed, pristine output. `npm run build`: succeeded (87 modules, 66ms).
+
+- Finding 3: `LibraryLoadingBadge` now renders a terminal notice ("Library loaded — N artist(s) could not be resolved") when nothing is pending and `failedCount &gt; 0`, instead of silently hiding — closes the total-outage-looks-empty gap end to end.
+- Regressions fixed: (1) `STANDALONE_MESSAGE_STYLE`'s `color: MUTED` moved after the `overlayCardStyle` spread so it isn't overridden by white; (2) `LeafletMap` now receives `null` track/location whenever `!showNowPlayingCard`, so the stale `AlbumBubble` no longer lingers under the idle/error overlay; (3) `STATUS_OVERLAY_STYLE` got `pointerEvents: "none"` so it no longer swallows clicks on markers beneath it; (4) report corrected — the `server/geocode.js` residual gap actually writes a 30-day-TTL false-negative cache entry, not just a per-request miss (not fixed, per settled ruling, just documented accurately).
+- README: `vercel env pull` → `--environment=production` (bare form defaults to Development); added callouts explaining `REDIRECT_URI` is static and Preview deployments get fresh URLs each time, so auth needs production or a fixed alias.
+
+Coverage: `LibraryLoadingBadge.jsx` 100%/100%/100%/100%; `MapView.jsx` branches 84.78% → 86% (bar 75%); `src/useLibraryArtists.js` unchanged at 75% (not touched this wave).
+
+Concerns: none new. Prior concerns stand (Feature 6 unverified visually; `useLibraryArtists.js` at the coverage bar).
+
+Report: `/Users/bert/github/sound-map/.superpowers/sdd/2026-08-01-library-explore-mode/final-fix-report.md` (appended, not rewritten).</result>
+<usage><subagent_tokens>273489</subagent_tokens><tool_uses>53</tool_uses><duration_ms>593871</duration_ms></usage>
+</task-notification>
+
+---
+
+Do the fix as prescribed by the security review. Update Vercel so branches that start with 'entire' do not trigger anything (job, deploy, etc.) on any env. The hover bubble in browse mode is too low, it should be closer to the bubble used for the "currently playing" including the pin icon for the location, start the server and open http://127.0.0.1:3000/ to check (note that it may already be running). All fixes on this branch and push to PR.
