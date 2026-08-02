@@ -51,6 +51,37 @@
         "label": "Skill: superpowers:subagent-driven-development",
         "default_collapsed": true
       }
+    },
+    {
+      "id": "claude-skill-toolu_013GqstyfGfmsw1X17qQ5eGB",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "run"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "3dabc24c5276",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 588,
+        "end": 589,
+        "entry_ids": [
+          "b73013b5-51ce-41be-a6b2-9c0a1f420c3d"
+        ],
+        "tool_use_id": "toolu_013GqstyfGfmsw1X17qQ5eGB"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_013GqstyfGfmsw1X17qQ5eGB"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: run",
+        "default_collapsed": true
+      }
     }
   ],
   "session_metrics": {
