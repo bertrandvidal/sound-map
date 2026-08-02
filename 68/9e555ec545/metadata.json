@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "689e555ec545",
+  "strategy": "manual-commit",
+  "branch": "library-explore-mode",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/components/MapView.jsx",
+    "src/components/__tests__/MapView.test.jsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/68/9e555ec545/0/metadata.json",
+      "transcript": "/68/9e555ec545/0/full.jsonl",
+      "compact_transcript": "/68/9e555ec545/0/transcript.jsonl",
+      "content_hash": "/68/9e555ec545/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
