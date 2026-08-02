@@ -26,3 +26,7 @@ Concerns: none new. Prior concerns stand (Feature 6 unverified visually; `useLib
 Report: `/Users/bert/github/sound-map/.superpowers/sdd/2026-08-01-library-explore-mode/final-fix-report.md` (appended, not rewritten).</result>
 <usage><subagent_tokens>273489</subagent_tokens><tool_uses>53</tool_uses><duration_ms>593871</duration_ms></usage>
 </task-notification>
+
+---
+
+Do the fix as prescribed by the security review. Update Vercel so branches that start with 'entire' do not trigger anything (job, deploy, etc.) on any env. The hover bubble in browse mode is too low, it should be closer to the bubble used for the "currently playing" including the pin icon for the location, start the server and open http://127.0.0.1:3000/ to check (note that it may already be running). All fixes on this branch and push to PR.
