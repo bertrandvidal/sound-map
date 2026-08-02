@@ -116,13 +116,29 @@ from scratch.
      `/api/callback`)
    - `GEOCODE_MIN_INTERVAL_MS` — copy the value from `.env.example`
 
+   > `REDIRECT_URI` is read as a single static value at request time
+   > (`api/login.js`, `api/callback.js`) — it can't vary per request. Vercel
+   > Preview deployments each get their own fresh, random URL, so a
+   > `REDIRECT_URI` set once for the Preview environment will only ever
+   > match *one specific* preview deployment (or a fixed preview alias, if
+   > you've set one up in the Vercel dashboard). Clicking Login against any
+   > other preview URL hits Spotify's `INVALID_CLIENT: Invalid redirect URI`
+   > dead end. Test the login flow against the production domain, or pin a
+   > stable alias and register that exact URL with Spotify instead — see
+   > step 6.
+
    `VERCEL_OIDC_TOKEN` and the Redis variables (next step) are auto-injected
    by integrations — don't set those by hand. Once everything above is set,
    pull it all into a local `.env.local` with:
 
    ```bash
-   vercel env pull
+   vercel env pull --environment=production
    ```
+
+   The `--environment` flag matters: `vercel env pull` on its own defaults
+   to the **Development** environment, not Preview or Production, so it
+   silently pulls the wrong values (or nothing, if you never set any
+   Development ones) instead of what you just configured above.
 
 5. **Provision Upstash Redis for explore mode**
 
@@ -157,3 +173,9 @@ from scratch.
    the production branch makes a production deployment. `vercel` /
    `vercel --prod` are for deploying from your machine without waiting on a
    push.
+
+   > Login only works against whichever exact URL `REDIRECT_URI` is set to
+   > (see the callout in step 4) — a bare `vercel` preview deployment gets a
+   > brand-new URL each time, so clicking Login there will not work out of
+   > the box. Use `vercel --prod`, or a fixed preview alias registered with
+   > Spotify, to actually exercise auth end to end.
