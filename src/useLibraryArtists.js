@@ -30,6 +30,10 @@ export function useLibraryArtists(token) {
   const [resolvedCount, setResolvedCount] = useState(0);
   const [total, setTotal] = useState(0);
   const [scopeMissing, setScopeMissing] = useState(false);
+  // Artists whose /api/geocode call failed for backend/network reasons
+  // (see resolveArtist below) — tracked separately from resolvedCount so a
+  // failure is never indistinguishable from a legitimate not_found.
+  const [failedCount, setFailedCount] = useState(0);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -75,22 +79,26 @@ export function useLibraryArtists(token) {
             }),
             signal: controller.signal,
           });
-          // Non-200 (e.g. a raw 500 from an Upstash outage, or 401/400/405)
-          // is treated as a resolution failure for this artist rather than
-          // retried: retrying an outage would spin the loop hot, and this
-          // artist isn't special — the user just sees it as unresolved,
-          // same as a legitimate "not_found". Only "throttled" (a 200
+          // Non-200 (e.g. a raw 500 — api/geocode.js wraps its own Redis
+          // calls and declares this as {status: "unavailable"}, but a
+          // network hop between us and Vercel can still surface as some
+          // other non-200, or 401/400/405) is treated as a resolution
+          // failure for this artist rather than retried: retrying an outage
+          // would spin the loop hot, and this artist isn't special. It is
+          // NOT treated as "not_found" though — that's a legitimate
+          // negative result from MusicBrainz/Nominatim, and this isn't one
+          // (see the "unavailable" handling below). Only "throttled" (a 200
           // response) retries, since that's the server explicitly asking us
           // to wait, with a bounded backoff it names itself.
           result = response.ok
             ? await response.json()
-            : { status: "not_found" };
+            : { status: "unavailable" };
         } catch {
           // Covers both a genuine network failure (treated like a non-200
           // above) and this request being aborted by cleanup on a token
           // change — the isLive() check right below discards `result` in
-          // the abort case, so it never gets marked not_found or counted.
-          result = { status: "not_found" };
+          // the abort case, so it never gets marked unavailable or counted.
+          result = { status: "unavailable" };
         }
 
         if (!isLive()) return;
@@ -102,6 +110,19 @@ export function useLibraryArtists(token) {
             return; // aborted while waiting to retry — loop is dead, stop
           }
           continue;
+        }
+
+        if (result.status === "unavailable") {
+          // A backend/network failure, not a legitimate negative result.
+          // Deliberately NOT counted in resolvedCount (see failedCount's
+          // declaration) so an outage can never make the library look
+          // "fully resolved" — LibraryLoadingBadge stays visible instead of
+          // hiding on a false "done". Also deliberately NOT retried here
+          // (that would spin the loop hot on a real outage); it simply
+          // moves on, same as the rest of this loop's failure handling.
+          updateArtist(artist.id, { status: "unavailable" });
+          if (isLive()) setFailedCount((c) => c + 1);
+          return;
         }
 
         if (result.status === "resolved") {
@@ -137,6 +158,7 @@ export function useLibraryArtists(token) {
       setArtists(initial);
       setTotal(initial.length);
       setResolvedCount(0);
+      setFailedCount(0);
 
       for (const artist of initial) {
         if (!isLive()) return;
@@ -152,5 +174,5 @@ export function useLibraryArtists(token) {
     };
   }, [token]);
 
-  return { artists, resolvedCount, total, scopeMissing };
+  return { artists, resolvedCount, total, scopeMissing, failedCount };
 }

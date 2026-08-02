@@ -253,6 +253,73 @@ describe("POST /api/geocode", () => {
   });
 });
 
+describe("POST /api/geocode — Redis outage handling", () => {
+  it("returns a declared unavailable response instead of throwing when the cache read fails", async () => {
+    const redis = {
+      get: vi.fn().mockRejectedValue(new Error("ECONNREFUSED")),
+      set: vi.fn(),
+    };
+    const lookup = vi.fn();
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const res = mockRes();
+
+    await geocodeHandler(
+      mockReq({ body: { artistId: "artist-1", artistName: "Test" } }),
+      res,
+      { redis, lookupArtistLocation: lookup },
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ status: "unavailable" });
+    expect(lookup).not.toHaveBeenCalled();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+  });
+
+  it("returns a declared unavailable response instead of throwing when acquiring the throttle lock fails", async () => {
+    const redis = {
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn().mockRejectedValue(new Error("ECONNREFUSED")),
+    };
+    const lookup = vi.fn();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = mockRes();
+
+    await geocodeHandler(
+      mockReq({ body: { artistId: "artist-1", artistName: "Test" } }),
+      res,
+      { redis, lookupArtistLocation: lookup },
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ status: "unavailable" });
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it("returns a declared unavailable response instead of throwing when caching the result fails", async () => {
+    const redis = {
+      get: vi.fn().mockResolvedValue(null),
+      set: vi
+        .fn()
+        .mockResolvedValueOnce("OK") // musicbrainz throttle granted
+        .mockRejectedValueOnce(new Error("ECONNREFUSED")), // final cache write
+    };
+    const lookup = vi.fn().mockResolvedValue(null);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = mockRes();
+
+    await geocodeHandler(
+      mockReq({ body: { artistId: "artist-1", artistName: "Test" } }),
+      res,
+      { redis, lookupArtistLocation: lookup },
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ status: "unavailable" });
+  });
+});
+
 describe("api/geocode default export", () => {
   it("delegates to geocodeHandler, short-circuiting before touching real deps for a non-POST request", async () => {
     const res = mockRes();

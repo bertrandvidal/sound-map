@@ -180,7 +180,13 @@ describe("useLibraryArtists", () => {
     expect(result.current.artists[0].status).toBe("not_found");
   });
 
-  it("treats a non-200 /api/geocode response as a resolution failure and moves on", async () => {
+  it("treats a non-200 /api/geocode response as a backend failure, not a legitimate not_found", async () => {
+    // A raw 500 (e.g. an Upstash outage — see api/geocode.js's Redis
+    // try/catch) must not be indistinguishable from a genuine "no location
+    // found" result: it must not be recorded as not_found and must not
+    // count toward resolvedCount, or a backend outage would make the whole
+    // library read as "resolved successfully, and it's empty" (see
+    // LibraryLoadingBadge, which hides once resolvedCount reaches total).
     fetchFollowedArtists.mockResolvedValue([
       { id: "a1", name: "Artist One", imageUrl: "img1" },
       { id: "a2", name: "Artist Two", imageUrl: "img2" },
@@ -201,12 +207,15 @@ describe("useLibraryArtists", () => {
 
     const { result } = renderHook(() => useLibraryArtists("token-1"));
 
-    await waitFor(() => expect(result.current.resolvedCount).toBe(2));
-    expect(result.current.artists[0].status).toBe("not_found");
-    expect(result.current.artists[1].status).toBe("resolved");
+    await waitFor(() =>
+      expect(result.current.artists[1]?.status).toBe("resolved"),
+    );
+    expect(result.current.artists[0].status).toBe("unavailable");
+    expect(result.current.resolvedCount).toBe(1);
+    expect(result.current.failedCount).toBe(1);
   });
 
-  it("treats a network-level fetch failure as a resolution failure and moves on", async () => {
+  it("treats a network-level fetch failure the same way — a backend failure, not a not_found", async () => {
     fetchFollowedArtists.mockResolvedValue([
       { id: "a1", name: "Artist One", imageUrl: "img1" },
       { id: "a2", name: "Artist Two", imageUrl: "img2" },
@@ -227,9 +236,47 @@ describe("useLibraryArtists", () => {
 
     const { result } = renderHook(() => useLibraryArtists("token-1"));
 
-    await waitFor(() => expect(result.current.resolvedCount).toBe(2));
-    expect(result.current.artists[0].status).toBe("not_found");
-    expect(result.current.artists[1].status).toBe("resolved");
+    await waitFor(() =>
+      expect(result.current.artists[1]?.status).toBe("resolved"),
+    );
+    expect(result.current.artists[0].status).toBe("unavailable");
+    expect(result.current.resolvedCount).toBe(1);
+    expect(result.current.failedCount).toBe(1);
+  });
+
+  it("resets failedCount when the loop restarts on a token change", async () => {
+    fetchFollowedArtists
+      .mockResolvedValueOnce([
+        { id: "a1", name: "Artist One", imageUrl: "img1" },
+      ])
+      .mockResolvedValueOnce([
+        { id: "b1", name: "Artist B", imageUrl: "imgB" },
+      ]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) })
+      .mockResolvedValueOnce(
+        jsonResponse({
+          status: "resolved",
+          lat: 1,
+          lng: 1,
+          placeName: "B Place",
+          resolvedAt: 1,
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result, rerender } = renderHook(
+      ({ token }) => useLibraryArtists(token),
+      { initialProps: { token: "token-1" } },
+    );
+
+    await waitFor(() => expect(result.current.failedCount).toBe(1));
+
+    rerender({ token: "token-2" });
+
+    await waitFor(() => expect(result.current.resolvedCount).toBe(1));
+    expect(result.current.failedCount).toBe(0);
   });
 
   it("sets scopeMissing and fires no geocode calls when fetchFollowedArtists throws SPOTIFY_ERROR:403", async () => {

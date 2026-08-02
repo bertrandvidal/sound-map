@@ -27,32 +27,46 @@ export async function geocodeHandler(req, res, deps = {}) {
   const lookup = deps.lookupArtistLocation ?? lookupArtistLocation;
   const minIntervalMs = Number(process.env.GEOCODE_MIN_INTERVAL_MS ?? 1100);
 
-  const cached = await getCachedArtist(redis, artistId);
-  if (cached) return res.status(200).json(cached);
+  // Every Redis call below (cache read, throttle locks, cache write) can
+  // throw on an Upstash outage. Uncaught, that surfaces as a raw 500 —
+  // indistinguishable, to the client, from any other failure — and
+  // useLibraryArtists.js (reasonably) treats a non-200 as "this artist has
+  // no location" (see its comment). Across an entire outage that marks
+  // every artist not_found, so the loop finishes and the library reads as
+  // "resolved successfully, and it's empty." Catching here and returning a
+  // declared status keeps the failure in-vocabulary and lets the client
+  // tell it apart from a legitimate negative result.
+  try {
+    const cached = await getCachedArtist(redis, artistId);
+    if (cached) return res.status(200).json(cached);
 
-  if (!(await tryAcquireThrottle(redis, "musicbrainz", minIntervalMs))) {
-    return res
-      .status(200)
-      .json({ status: "throttled", retryAfterMs: minIntervalMs });
+    if (!(await tryAcquireThrottle(redis, "musicbrainz", minIntervalMs))) {
+      return res
+        .status(200)
+        .json({ status: "throttled", retryAfterMs: minIntervalMs });
+    }
+
+    // lookup() does both the MusicBrainz and (if needed) Nominatim calls
+    // internally; a Nominatim-side throttle is acquired inside it.
+    const location = await lookup(artistName, {
+      acquireNominatimThrottle: () =>
+        tryAcquireThrottle(redis, "nominatim", minIntervalMs),
+    });
+    if (location === "THROTTLED") {
+      return res
+        .status(200)
+        .json({ status: "throttled", retryAfterMs: minIntervalMs });
+    }
+
+    const value = location
+      ? { status: "resolved", ...location, resolvedAt: Date.now() }
+      : { status: "not_found", resolvedAt: Date.now() };
+    await setCachedArtist(redis, artistId, value);
+    return res.status(200).json(value);
+  } catch (err) {
+    console.error("geocodeHandler: Redis failure", err);
+    return res.status(200).json({ status: "unavailable" });
   }
-
-  // lookup() does both the MusicBrainz and (if needed) Nominatim calls
-  // internally; a Nominatim-side throttle is acquired inside it.
-  const location = await lookup(artistName, {
-    acquireNominatimThrottle: () =>
-      tryAcquireThrottle(redis, "nominatim", minIntervalMs),
-  });
-  if (location === "THROTTLED") {
-    return res
-      .status(200)
-      .json({ status: "throttled", retryAfterMs: minIntervalMs });
-  }
-
-  const value = location
-    ? { status: "resolved", ...location, resolvedAt: Date.now() }
-    : { status: "not_found", resolvedAt: Date.now() };
-  await setCachedArtist(redis, artistId, value);
-  return res.status(200).json(value);
 }
 
 export default function handler(req, res) {

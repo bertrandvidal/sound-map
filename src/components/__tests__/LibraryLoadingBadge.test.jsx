@@ -17,6 +17,25 @@ describe("LibraryLoadingBadge", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("renders nothing once resolvedCount + failedCount together reach total", () => {
+    // The loop has finished attempting every artist even though some ended
+    // in a backend failure rather than a resolution — the badge's job is
+    // signalling "still loading", not "fully resolved", so it must not hang
+    // forever just because some artists came back unavailable (see
+    // useLibraryArtists.js's failedCount).
+    const { container } = render(
+      <LibraryLoadingBadge resolvedCount={300} total={359} failedCount={59} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("keeps showing while some artists are still pending, even with failures counted in", () => {
+    render(
+      <LibraryLoadingBadge resolvedCount={100} total={359} failedCount={59} />,
+    );
+    expect(screen.getByText("Loading library 100/359")).toBeInTheDocument();
+  });
+
   it("renders the counter text while resolution is in progress", () => {
     render(<LibraryLoadingBadge resolvedCount={12} total={359} />);
     expect(screen.getByText("Loading library 12/359")).toBeInTheDocument();
