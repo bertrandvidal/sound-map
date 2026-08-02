@@ -17,14 +17,54 @@ describe("LibraryLoadingBadge", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders nothing once resolvedCount + failedCount together reach total", () => {
-    // The loop has finished attempting every artist even though some ended
-    // in a backend failure rather than a resolution — the badge's job is
-    // signalling "still loading", not "fully resolved", so it must not hang
-    // forever just because some artists came back unavailable (see
-    // useLibraryArtists.js's failedCount).
-    const { container } = render(
+  it("renders a terminal failure notice, not nothing, once resolvedCount + failedCount reach total with failures present", () => {
+    // The loop has finished attempting every artist, but some ended in a
+    // backend failure rather than a resolution — for a total Upstash
+    // outage that's EVERY artist. Silently hiding here (the old behavior)
+    // meant an outage looked exactly like "resolved successfully, and it's
+    // empty": ArtistClusterLayer only renders status === "resolved"
+    // markers, so a fully-failed run showed an empty map with no badge and
+    // no error anywhere. The badge must say something true instead.
+    render(
       <LibraryLoadingBadge resolvedCount={300} total={359} failedCount={59} />,
+    );
+    expect(
+      screen.getByText("Library loaded — 59 artists could not be resolved"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the truthful terminal notice when EVERY artist failed (the total-outage case), not a silent empty pill", () => {
+    // resolvedCount is 0: nothing resolved at all, e.g. an Upstash outage
+    // for the entire library. Before this fix, `total===0 || 0+500>=500`
+    // hid the badge exactly as if the library were empty and done —
+    // indistinguishable from a real 0-artist library. That's Finding 3.
+    render(
+      <LibraryLoadingBadge resolvedCount={0} total={500} failedCount={500} />,
+    );
+    expect(
+      screen.getByText("Library loaded — 500 artists could not be resolved"),
+    ).toBeInTheDocument();
+  });
+
+  it("uses singular wording for exactly one failure", () => {
+    render(<LibraryLoadingBadge resolvedCount={0} total={1} failedCount={1} />);
+    expect(
+      screen.getByText("Library loaded — 1 artist could not be resolved"),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the terminal failure notice as an accessible polite live region too", () => {
+    render(<LibraryLoadingBadge resolvedCount={0} total={1} failedCount={1} />);
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent(
+      "Library loaded — 1 artist could not be resolved",
+    );
+    expect(status).toHaveAttribute("aria-live", "polite");
+  });
+
+  it("renders nothing once resolvedCount reaches total with no failures at all (the fully-successful terminal case)", () => {
+    const { container } = render(
+      <LibraryLoadingBadge resolvedCount={359} total={359} failedCount={0} />,
     );
     expect(container).toBeEmptyDOMElement();
   });

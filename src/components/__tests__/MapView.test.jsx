@@ -20,10 +20,17 @@ vi.mock("../../useLibraryArtists.js", () => ({
   useLibraryArtists: vi.fn(),
 }));
 vi.mock("../LeafletMap.jsx", () => ({
-  default: ({ exploreMode, libraryArtists, onSelectArtist }) => (
+  default: ({
+    track,
+    location,
+    exploreMode,
+    libraryArtists,
+    onSelectArtist,
+  }) => (
     <div
       data-testid="leaflet-map"
       data-explore-mode={exploreMode ? "true" : "false"}
+      data-has-now-playing-marker={track && location ? "true" : "false"}
     >
       <span data-testid="library-artist-count">
         {(libraryArtists ?? []).length}
@@ -285,6 +292,11 @@ describe("MapView poll loop", () => {
       await vi.advanceTimersByTimeAsync(0);
     });
     expect(screen.getByTestId("now-playing-card")).toBeInTheDocument();
+    // the map's own now-playing marker must agree with the card
+    expect(screen.getByTestId("leaflet-map")).toHaveAttribute(
+      "data-has-now-playing-marker",
+      "true",
+    );
 
     // the poll interval (5s) fires again and this time nothing is playing
     await act(async () => {
@@ -292,7 +304,41 @@ describe("MapView poll loop", () => {
     });
     expect(screen.queryByTestId("now-playing-card")).not.toBeInTheDocument();
     expect(screen.getByText("Play something on Spotify")).toBeInTheDocument();
+    // Regression guard: LeafletMap must stop receiving a track/location once
+    // status leaves "playing", or the last-played AlbumBubble stays pinned
+    // on the map underneath the idle overlay, disagreeing with the (now
+    // hidden) NowPlayingCard about whether that track is current.
+    expect(screen.getByTestId("leaflet-map")).toHaveAttribute(
+      "data-has-now-playing-marker",
+      "false",
+    );
     vi.useRealTimers();
+  });
+
+  it("does not block clicks on the map underneath the idle overlay (regression: overlay must not swallow pointer events)", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(null);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByText("Play something on Spotify")).toBeInTheDocument(),
+    );
+    const overlay = screen.getByText("Play something on Spotify").parentElement;
+    expect(overlay).toHaveStyle({ pointerEvents: "none" });
+  });
+
+  it("renders the standalone scope-warning message in the muted color, not the overlay card's default text color (regression)", async () => {
+    useLibraryArtists.mockReturnValue({
+      artists: [],
+      resolvedCount: 0,
+      total: 0,
+      scopeMissing: true,
+    });
+    fetchCurrentlyPlaying.mockResolvedValue(null);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    const message = await screen.findByText(
+      "Log out and back in to enable Browse Library",
+    );
+    // MUTED (#b3b3b3) — must win over overlayCardStyle's TEXT (#fff)
+    expect(message).toHaveStyle({ color: "rgb(179, 179, 179)" });
   });
 
   it("refreshes the token when a control action returns TOKEN_EXPIRED", async () => {

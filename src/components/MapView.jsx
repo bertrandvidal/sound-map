@@ -34,6 +34,11 @@ const STATUS_OVERLAY_STYLE = {
   zIndex: 900,
   padding: "16px 24px",
   textAlign: "center",
+  // Nothing inside this overlay is interactive (just a message), and it now
+  // sits on top of the always-rendered map — without this it swallows
+  // clicks on any cluster/marker underneath it in explore mode while
+  // idle/error.
+  pointerEvents: "none",
   ...overlayCardStyle,
 };
 
@@ -41,6 +46,10 @@ const STATUS_OVERLAY_STYLE = {
 // NowPlayingCard to host the message (see displayMessage below). Mirrors
 // NowPlayingCard's own message-slot styling (top-right, MUTED, 12px) so it
 // reads as the same kind of notice.
+//
+// `color: MUTED` must come AFTER the `...overlayCardStyle` spread —
+// overlayCardStyle sets `color: TEXT` (white), and object spread applies in
+// source order, so putting MUTED first was silently overridden by white.
 const STANDALONE_MESSAGE_STYLE = {
   position: "fixed",
   top: 16,
@@ -48,9 +57,9 @@ const STANDALONE_MESSAGE_STYLE = {
   zIndex: 1000,
   padding: "10px 16px",
   fontSize: 12,
-  color: MUTED,
   textAlign: "center",
   ...overlayCardStyle,
+  color: MUTED,
 };
 
 export default function MapView({ token, onTokenExpired }) {
@@ -227,9 +236,17 @@ export default function MapView({ token, onTokenExpired }) {
 
   return (
     <div style={{ position: "relative", height: "100vh", width: "100%" }}>
+      {/* LeafletMap only gets a track/location while status is actually
+          "playing" (same condition as showNowPlayingCard) — track/location
+          state itself is left untouched (syncNowPlaying's artist-change
+          dedup and handlePlayPause's optimistic flip both still rely on it
+          persisting across idle/error). Without this, the last-played
+          AlbumBubble stayed pinned on the map underneath the idle/error
+          overlay, disagreeing with the (correctly hidden) NowPlayingCard
+          about whether that track was still current. */}
       <LeafletMap
-        track={track}
-        location={location}
+        track={showNowPlayingCard ? track : null}
+        location={showNowPlayingCard ? location : null}
         exploreMode={exploreMode}
         libraryArtists={artists}
         onSelectArtist={handleSelectArtist}
