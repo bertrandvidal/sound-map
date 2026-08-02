@@ -127,8 +127,9 @@ from scratch.
 5. **Provision Upstash Redis for explore mode**
 
    From the dashboard's **Storage** tab, add the **Upstash for Redis**
-   integration (or `vercel integration add upstash`) and connect a database
-   to this project.
+   integration (or `vercel integration add upstash/upstash-kv` — run
+   `vercel integration discover upstash` to confirm the slug) and connect a
+   database to this project.
 
    The integration injects Redis credentials into the project's environment
    variables under a **`REDIS_`** prefix: `REDIS_KV_REST_API_URL`,
