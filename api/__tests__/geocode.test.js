@@ -1,5 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { sealSession } from "../../server/auth.js";
 import { geocodeHandler } from "../geocode.js";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function mockRes() {
   return {
@@ -16,11 +19,22 @@ function mockRes() {
   };
 }
 
-function mockReq({ method = "POST", cookie = "rt=sealed-value", body } = {}) {
+// Defaults to a real, validly-sealed session cookie so every test below is
+// exercising the actual crypto path, not a stand-in. Individual tests that
+// care about the auth guard itself override `cookie`.
+function mockReq({
+  method = "POST",
+  cookie = `rt=${sealSession("refresh-abc")}`,
+  body,
+} = {}) {
   const headers = {};
   if (cookie) headers.cookie = cookie;
   return { method, headers, body };
 }
+
+beforeEach(() => {
+  vi.stubEnv("COOKIE_ENCRYPTION_KEY", Buffer.alloc(32, 7).toString("base64"));
+});
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -43,6 +57,53 @@ describe("POST /api/geocode", () => {
     );
     expect(res.statusCode).toBe(401);
     expect(res.body).toEqual({ error: "no_session" });
+  });
+
+  it("returns 401 no_session for a forged/garbage cookie value, without touching Redis or the lookup", async () => {
+    // Regression test for the security finding: api/geocode.js used to only
+    // check that an `rt` cookie was present, never decrypting it — so any
+    // party holding `rt=x` could use this endpoint as an open, unauthenticated
+    // proxy in front of the shared MusicBrainz/Nominatim rate limits. This
+    // must now be rejected before Redis (or the lookup) is ever touched.
+    const redis = { get: vi.fn(), set: vi.fn() };
+    const lookup = vi.fn();
+    const res = mockRes();
+
+    await geocodeHandler(
+      mockReq({
+        cookie: "rt=x",
+        body: { artistId: "artist-1", artistName: "Test" },
+      }),
+      res,
+      { redis, lookupArtistLocation: lookup },
+    );
+
+    expect(res.statusCode).toBe(401);
+    expect(res.body).toEqual({ error: "no_session" });
+    expect(redis.get).not.toHaveBeenCalled();
+    expect(redis.set).not.toHaveBeenCalled();
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 no_session for a session sealed more than 30 days ago", async () => {
+    const redis = { get: vi.fn(), set: vi.fn() };
+    const lookup = vi.fn();
+    const res = mockRes();
+    const expired = sealSession("refresh-abc", Date.now() - 31 * DAY_MS);
+
+    await geocodeHandler(
+      mockReq({
+        cookie: `rt=${expired}`,
+        body: { artistId: "artist-1", artistName: "Test" },
+      }),
+      res,
+      { redis, lookupArtistLocation: lookup },
+    );
+
+    expect(res.statusCode).toBe(401);
+    expect(res.body).toEqual({ error: "no_session" });
+    expect(redis.get).not.toHaveBeenCalled();
+    expect(lookup).not.toHaveBeenCalled();
   });
 
   it("returns 400 invalid_request when artistId is missing", async () => {

@@ -1,4 +1,4 @@
-import { COOKIE_NAME, parseCookies } from "../server/auth.js";
+import { COOKIE_NAME, openSession, parseCookies } from "../server/auth.js";
 import { lookupArtistLocation } from "../server/geocode.js";
 import {
   createRedisClient,
@@ -12,7 +12,16 @@ export async function geocodeHandler(req, res, deps = {}) {
     return res.status(405).json({ error: "method_not_allowed" });
   }
 
-  if (!parseCookies(req.headers.cookie)[COOKIE_NAME]) {
+  // Actually validate the session rather than just checking the `rt`
+  // cookie is present: openSession decrypts and verifies it (shape +
+  // 30-day lifetime), throwing on anything forged/tampered/expired. Without
+  // this, any party holding a garbage `rt=x` cookie could hit this endpoint
+  // as an open, unauthenticated proxy in front of the shared, rate-limited
+  // MusicBrainz/Nominatim lookups below. Only the "is this real" fact is
+  // needed here — the decrypted refresh token itself is discarded.
+  try {
+    openSession(parseCookies(req.headers.cookie)[COOKIE_NAME]);
+  } catch {
     return res.status(401).json({ error: "no_session" });
   }
 
