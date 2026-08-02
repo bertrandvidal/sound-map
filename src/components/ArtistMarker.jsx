@@ -1,6 +1,7 @@
 import L from "leaflet";
 import { useMemo } from "react";
-import { Marker } from "react-leaflet";
+import { Marker, Tooltip } from "react-leaflet";
+import "./artistTooltip.css";
 
 // Same L.divIcon technique as AlbumBubble.jsx (64px circular image, white
 // border, drop shadow) so a resolved library artist reads as the same kind
@@ -26,6 +27,16 @@ export default function ArtistMarker({ artist, onSelect }) {
       position={[artist.lat, artist.lng]}
       icon={icon}
       eventHandlers={{ click: () => onSelect?.(artist) }}
-    />
+    >
+      {/* Leaflet's Tooltip binds to the marker's mouseover/mouseout by
+          default (no extra event wiring needed) — this is the hover-to-see
+          behavior itself, not just its styling. */}
+      <Tooltip className="artist-tooltip" direction="top" opacity={1}>
+        <div className="artist-tooltip-name">{artist.name}</div>
+        {artist.placeName && (
+          <div className="artist-tooltip-place">{artist.placeName}</div>
+        )}
+      </Tooltip>
+    </Marker>
   );
 }

@@ -1,0 +1,40 @@
+/* Match the Spotify-dark NowPlayingCard / AlbumBubble popup (see
+   src/theme.js and albumPopup.css) rather than shipping Leaflet's default
+   white tooltip chrome. */
+.leaflet-tooltip.artist-tooltip {
+  background: #181818; /* SURFACE */
+  color: #fff; /* TEXT */
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  padding: 6px 10px;
+  font-family: sans-serif;
+}
+
+/* Point the tooltip's little arrow at the same color as the bubble, for
+   every direction Leaflet might auto-pick. */
+.leaflet-tooltip.artist-tooltip.leaflet-tooltip-top::before {
+  border-top-color: #181818;
+}
+.leaflet-tooltip.artist-tooltip.leaflet-tooltip-bottom::before {
+  border-bottom-color: #181818;
+}
+.leaflet-tooltip.artist-tooltip.leaflet-tooltip-left::before {
+  border-left-color: #181818;
+}
+.leaflet-tooltip.artist-tooltip.leaflet-tooltip-right::before {
+  border-right-color: #181818;
+}
+
+.artist-tooltip-name {
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.artist-tooltip-place {
+  color: #b3b3b3; /* MUTED */
+  font-size: 11px;
+  margin-top: 2px;
+  white-space: nowrap;
+}
