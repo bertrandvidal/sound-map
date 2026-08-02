@@ -3,6 +3,7 @@ import { devLog } from "../devLog.js";
 import { lookupArtistLocation } from "../geo.js";
 import { classifyPollError } from "../pollError.js";
 import { fetchCurrentlyPlaying, pause, play, skipToNext } from "../spotify.js";
+import { MUTED, overlayCardStyle } from "../theme.js";
 import { useLibraryArtists } from "../useLibraryArtists.js";
 import BrowseLibraryButton from "./BrowseLibraryButton.jsx";
 import LeafletMap from "./LeafletMap.jsx";
@@ -12,6 +13,45 @@ import NowPlayingCard from "./NowPlayingCard.jsx";
 const POLL_MS = 5_000;
 const PACIFIC_FALLBACK = { lat: 0, lng: -160, placeName: "Unknown location" };
 const SCOPE_WARNING = "Log out and back in to enable Browse Library";
+
+// Fix 1 (final whole-branch review): explore mode's flagship feature — the
+// clustered library map — must be reachable no matter what the now-playing
+// poll is doing. These two states used to be full-screen early returns that
+// replaced the map entirely, which meant BrowseLibraryButton and
+// LibraryLoadingBadge only existed once something was playing. Both status
+// messages are now a small overlay on top of the (always-rendered) map
+// instead. "error" gets the same treatment as "idle": every case that lands
+// here is an unrecognized *poll* error (classifyPollError already routes
+// TOKEN_EXPIRED to a silent refresh and RATE_LIMITED to a retry) — never a
+// hard auth failure — and the library-resolution loop is independent of the
+// now-playing poll, so there's no reason a flaky currently-playing request
+// should block browsing an already-fetched library.
+const STATUS_OVERLAY_STYLE = {
+  position: "fixed",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%)",
+  zIndex: 900,
+  padding: "16px 24px",
+  textAlign: "center",
+  ...overlayCardStyle,
+};
+
+// Fallback location for the scope warning / a control error when there's no
+// NowPlayingCard to host the message (see displayMessage below). Mirrors
+// NowPlayingCard's own message-slot styling (top-right, MUTED, 12px) so it
+// reads as the same kind of notice.
+const STANDALONE_MESSAGE_STYLE = {
+  position: "fixed",
+  top: 16,
+  right: 16,
+  zIndex: 1000,
+  padding: "10px 16px",
+  fontSize: 12,
+  color: MUTED,
+  textAlign: "center",
+  ...overlayCardStyle,
+};
 
 export default function MapView({ token, onTokenExpired }) {
   const [track, setTrack] = useState(null);
@@ -26,7 +66,7 @@ export default function MapView({ token, onTokenExpired }) {
   // Runs unconditionally from app boot regardless of exploreMode, per spec —
   // the background resolution loop keeps the library pre-populated so
   // explore mode is ready by the time the user opens it.
-  const { artists, resolvedCount, total, scopeMissing } =
+  const { artists, resolvedCount, total, scopeMissing, failedCount } =
     useLibraryArtists(token);
 
   useEffect(() => {
@@ -169,39 +209,22 @@ export default function MapView({ token, onTokenExpired }) {
     );
   }
 
-  if (status === "idle") {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          fontFamily: "sans-serif",
-        }}
-      >
-        <p>Play something on Spotify</p>
-      </div>
-    );
-  }
+  const statusOverlayMessage =
+    status === "idle"
+      ? "Play something on Spotify"
+      : status === "error"
+        ? "Something went wrong. Check the console."
+        : null;
 
-  if (status === "error") {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          fontFamily: "sans-serif",
-        }}
-      >
-        <p>Something went wrong. Check the console.</p>
-      </div>
-    );
-  }
+  // NowPlayingCard only exists while a track is actually playing (track can
+  // go stale — e.g. still set from a previous "playing" poll — once status
+  // moves to "idle"/"error", so this checks status too, not just track).
+  // When there's no card to host displayMessage (the scope warning, or a
+  // transient control error from selecting a library artist while nothing
+  // is playing), it falls back to its own standalone slot so it's never
+  // silently dropped just because playback stopped.
+  const showNowPlayingCard = status === "playing" && track;
 
-  // renders for 'loading' (initial) and 'playing' — LeafletMap handles null track/location
   return (
     <div style={{ position: "relative", height: "100vh", width: "100%" }}>
       <LeafletMap
@@ -211,7 +234,12 @@ export default function MapView({ token, onTokenExpired }) {
         libraryArtists={artists}
         onSelectArtist={handleSelectArtist}
       />
-      {track && (
+      {statusOverlayMessage && (
+        <div style={STATUS_OVERLAY_STYLE}>
+          <p style={{ margin: 0 }}>{statusOverlayMessage}</p>
+        </div>
+      )}
+      {showNowPlayingCard ? (
         <NowPlayingCard
           track={track}
           placeName={location?.placeName}
@@ -219,8 +247,16 @@ export default function MapView({ token, onTokenExpired }) {
           onNext={handleNext}
           controlMessage={displayMessage}
         />
+      ) : (
+        displayMessage && (
+          <div style={STANDALONE_MESSAGE_STYLE}>{displayMessage}</div>
+        )
       )}
-      <LibraryLoadingBadge resolvedCount={resolvedCount} total={total} />
+      <LibraryLoadingBadge
+        resolvedCount={resolvedCount}
+        total={total}
+        failedCount={failedCount}
+      />
       <BrowseLibraryButton
         exploreMode={exploreMode}
         onToggle={() => setExploreMode((v) => !v)}
