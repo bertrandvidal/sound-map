@@ -19,6 +19,14 @@ export default function ArtistMarker({ artist, onSelect }) {
       className: "",
       iconSize: [64, 64],
       iconAnchor: [32, 32],
+      // Mirrors AlbumBubble.jsx's popupAnchor: [0, -36]. Leaflet's Tooltip
+      // (like Popup) positions itself at iconAnchor + tooltipAnchor; with no
+      // tooltipAnchor set it defaults to [0, 0] and the tooltip anchors at
+      // the bubble's centre, overlapping it. -36 lifts it clear of the 64px
+      // (32px-radius) circle by the same 4px margin the now-playing popup
+      // uses, so both floating cards sit at the same height above their
+      // bubble.
+      tooltipAnchor: [0, -36],
     });
   }, [artist.imageUrl, artist.name]);
 
@@ -33,8 +41,11 @@ export default function ArtistMarker({ artist, onSelect }) {
           behavior itself, not just its styling. */}
       <Tooltip className="artist-tooltip" direction="top" opacity={1}>
         <div className="artist-tooltip-name">{artist.name}</div>
+        {/* Same 📍-prefixed treatment as AlbumPopupCard.jsx's place line,
+            and same graceful omission when there's no place to show — never
+            render a lone pin or the literal string "undefined". */}
         {artist.placeName && (
-          <div className="artist-tooltip-place">{artist.placeName}</div>
+          <div className="artist-tooltip-place">📍 {artist.placeName}</div>
         )}
       </Tooltip>
     </Marker>
