@@ -1,0 +1,5 @@
+pick up where you left off.
+
+---
+
+pick up where you left off. Also in browsing mode when you hover show the name and place of artist; Add to README how to setup Vercel (link repo, deploy, storage); use Fable 5 for security review after you open the PR
