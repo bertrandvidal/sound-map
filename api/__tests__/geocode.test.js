@@ -206,6 +206,18 @@ describe("POST /api/geocode", () => {
     expect(res.body).toEqual({ status: "throttled", retryAfterMs: 1100 });
     // Both the musicbrainz and nominatim locks were attempted; no cache write.
     expect(redis.set).toHaveBeenCalledTimes(2);
+    // Regression guard: the two locks must use distinct keys. A refactor that
+    // collapsed both throttles onto "throttle:musicbrainz" would still pass
+    // the call-count assertion above while silently doubling the rate at
+    // which we hit both upstreams.
+    expect(redis.set).toHaveBeenNthCalledWith(1, "throttle:musicbrainz", "1", {
+      nx: true,
+      px: 1100,
+    });
+    expect(redis.set).toHaveBeenNthCalledWith(2, "throttle:nominatim", "1", {
+      nx: true,
+      px: 1100,
+    });
   });
 
   it("caches and returns a resolved location on the full success path", async () => {
@@ -236,7 +248,7 @@ describe("POST /api/geocode", () => {
     expect(redis.set).toHaveBeenLastCalledWith(
       "geo:artist-1",
       expect.objectContaining({ status: "resolved", ...location }),
-      undefined,
+      { ex: 15552000 }, // resolved entries carry a 180-day TTL (see server/kv.js)
     );
   });
 });

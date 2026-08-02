@@ -57,13 +57,18 @@ describe("getCachedArtist", () => {
 });
 
 describe("setCachedArtist", () => {
-  it("stores resolved entries with no TTL", async () => {
+  it("stores resolved entries with a 180-day TTL", async () => {
     const redis = { set: vi.fn().mockResolvedValue("OK") };
     const value = { status: "resolved", lat: 1, lng: 2, placeName: "Here" };
 
     await setCachedArtist(redis, "artist-1", value);
 
-    expect(redis.set).toHaveBeenCalledWith("geo:artist-1", value, undefined);
+    // 180 days: a fuzzy MusicBrainz name match can be wrong, so a bad
+    // location should eventually expire rather than being cached forever
+    // (see server/geocode.js's no-disambiguation artist lookup).
+    expect(redis.set).toHaveBeenCalledWith("geo:artist-1", value, {
+      ex: 15552000,
+    });
   });
 
   it("stores not_found entries with a 30-day TTL", async () => {

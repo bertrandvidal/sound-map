@@ -68,7 +68,7 @@ explore mode — there's no auto-switch back to now-playing.
 
 **`server/geocode.js`** — `lookupArtistLocation(artistName)`, the server-side counterpart to `src/geo.js` (same MusicBrainz → Nominatim strategy), written to accept an `acquireNominatimThrottle` callback so the caller can rate-limit the second hop independently of the first.
 
-**`server/kv.js`** — Redis cache (`geo:<artistId>`, with `not_found` results cached for 30 days) and throttle lock (`throttle:<service>`, via `SET NX PX`) backing `api/geocode.js`. Constructs the `Redis` client explicitly against `REDIS_KV_REST_API_URL`/`REDIS_KV_REST_API_TOKEN` — **not** `Redis.fromEnv()`, which doesn't recognize the `REDIS_`-prefixed names the Vercel Marketplace Upstash integration injects (see `.env.example`).
+**`server/kv.js`** — Redis cache (`geo:<artistId>`, `not_found` results cached 30 days, `resolved` results cached 180 days — long enough to be effective, bounded so a bad fuzzy-match MusicBrainz result doesn't stick forever) and throttle lock (`throttle:<service>`, via `SET NX PX`) backing `api/geocode.js`. Constructs the `Redis` client explicitly against `REDIS_KV_REST_API_URL`/`REDIS_KV_REST_API_TOKEN` — **not** `Redis.fromEnv()`, which doesn't recognize the `REDIS_`-prefixed names the Vercel Marketplace Upstash integration injects (see `.env.example`).
 
 ### Environment variables
 

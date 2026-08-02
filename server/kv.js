@@ -1,6 +1,12 @@
 import { Redis } from "@upstash/redis";
 
 const NOT_FOUND_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
+// server/geocode.js picks mbData.artists[0] from a fuzzy, undisambiguated
+// MusicBrainz name search, so a wrong match for a common artist name is
+// expected occasionally. Without a TTL that bad location would be cached
+// forever, fixable only by hand in the Upstash console. 180 days bounds the
+// damage while still making the cache effective for its purpose.
+const RESOLVED_TTL_SECONDS = 60 * 60 * 24 * 180; // 180 days
 
 // The Vercel Marketplace Upstash integration injects credentials under a
 // `REDIS_` prefix (`REDIS_KV_REST_API_URL` / `REDIS_KV_REST_API_TOKEN`), not
@@ -20,9 +26,9 @@ export async function getCachedArtist(redis, artistId) {
 }
 
 export async function setCachedArtist(redis, artistId, value) {
-  const options =
-    value.status === "not_found" ? { ex: NOT_FOUND_TTL_SECONDS } : undefined;
-  await redis.set(`geo:${artistId}`, value, options);
+  const ttlSeconds =
+    value.status === "not_found" ? NOT_FOUND_TTL_SECONDS : RESOLVED_TTL_SECONDS;
+  await redis.set(`geo:${artistId}`, value, { ex: ttlSeconds });
 }
 
 export async function tryAcquireThrottle(redis, service, minIntervalMs) {
