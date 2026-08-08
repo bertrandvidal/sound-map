@@ -424,6 +424,38 @@ describe("MapView explore mode", () => {
     expect(screen.getByTestId("library-artist-count")).toHaveTextContent("1");
   });
 
+  it("drops the idle prompt while browsing the library, and brings it back on exit", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(null);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByText("Play something on Spotify")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId("browse-library-button"));
+    expect(
+      screen.queryByText("Play something on Spotify"),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("browse-library-button"));
+    expect(screen.getByText("Play something on Spotify")).toBeInTheDocument();
+  });
+
+  it("still surfaces a poll error while in explore mode", async () => {
+    fetchCurrentlyPlaying.mockRejectedValue(new Error("SPOTIFY_ERROR:500"));
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(
+        screen.getByText("Something went wrong. Check the console."),
+      ).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId("browse-library-button"));
+
+    expect(
+      screen.getByText("Something went wrong. Check the console."),
+    ).toBeInTheDocument();
+  });
+
   // Fix 2: the stale-scope warning renders inside NowPlayingCard today, which
   // is itself gated on a track — the users who most need it (existing users
   // whose session predates user-follow-read) often open the app with nothing

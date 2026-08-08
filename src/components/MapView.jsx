@@ -225,8 +225,14 @@ export default function MapView({ token, onTokenExpired }) {
     );
   }
 
+  // "Play something on Spotify" is a prompt for the now-playing view — it's
+  // the map's empty state. In explore mode the map isn't empty (it's showing
+  // the clustered library) and the user is deliberately browsing rather than
+  // listening, so the prompt is just a card floating over content they asked
+  // for. The error message is kept in both modes: it reports a real failure
+  // the user should know about, not an empty state.
   const statusOverlayMessage =
-    status === "idle"
+    status === "idle" && !exploreMode
       ? "Play something on Spotify"
       : status === "error"
         ? "Something went wrong. Check the console."
