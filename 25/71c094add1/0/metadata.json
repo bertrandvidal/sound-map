@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "2571c094add1",
+  "session_id": "e8bdbbf9-027a-4110-9ddf-05e31fb43729",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-08T21:31:41.845163Z",
+  "branch": "map-polish-fixes",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/components/__tests__/LeafletMap.test.jsx",
+    "src/components/LeafletMap.jsx",
+    "src/components/MapView.jsx"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5",
+  "turn_id": "1b1420fcbfb7",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 468,
+    "cache_creation_tokens": 35280,
+    "cache_read_tokens": 400535,
+    "output_tokens": 4122,
+    "api_call_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-08T21:31:41.836817Z",
+    "agent_lines": 43,
+    "agent_removed": 2,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 43,
+    "total_lines_changed": 45,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 44,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 44
+      }
+    }
+  ]
+}

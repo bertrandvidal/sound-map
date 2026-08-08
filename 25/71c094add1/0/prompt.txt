@@ -1,0 +1,5 @@
+We'll work on multiple things in one session: 1. the 'unknown location; should have a zoom that let is show that it's the middle of
+  the ocean i.e. zoom out once or twice so the major continents can be seen rather than just water 2. When nothing is playing on 
+  spotify the "Play something on Spotify" should not show if the user goes to browse their library 3. Artist origin are not unique 
+  names e.g. Nirvana is from Aberdeen in the Pacific North West not somewhere on the east coast of the UK :). Let's take those one at
+  a time.
