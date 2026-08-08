@@ -11,7 +11,14 @@ import LibraryLoadingBadge from "./LibraryLoadingBadge.jsx";
 import NowPlayingCard from "./NowPlayingCard.jsx";
 
 const POLL_MS = 5_000;
-const PACIFIC_FALLBACK = { lat: 0, lng: -160, placeName: "Unknown location" };
+// `unknown` marks this as the we-have-no-idea placeholder rather than a real
+// resolved origin; LeafletMap keys its fly-to zoom off it (see UNKNOWN_ZOOM).
+const PACIFIC_FALLBACK = {
+  lat: 0,
+  lng: -160,
+  placeName: "Unknown location",
+  unknown: true,
+};
 const SCOPE_WARNING = "Log out and back in to enable Browse Library";
 
 // Fix 1 (final whole-branch review): explore mode's flagship feature — the
