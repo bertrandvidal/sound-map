@@ -4,11 +4,26 @@ import "leaflet/dist/leaflet.css";
 import AlbumBubble from "./AlbumBubble.jsx";
 import ArtistClusterLayer from "./ArtistClusterLayer.jsx";
 
+// Zoom used when we actually know where the artist is from — close enough to
+// read the city/region around the bubble.
+export const ARTIST_ZOOM = 6;
+// Zoom used for the Pacific "Unknown location" fallback. At ARTIST_ZOOM that
+// spot is pure open water, which reads as a broken map rather than as "we
+// don't know". Staying zoomed out keeps the Americas and Oceania in frame, so
+// the empty ocean is legibly a deliberate nowhere.
+export const UNKNOWN_ZOOM = 3;
+
+export function zoomForLocation(location) {
+  return location?.unknown ? UNKNOWN_ZOOM : ARTIST_ZOOM;
+}
+
 function MapController({ location }) {
   const map = useMap();
   useEffect(() => {
     if (location) {
-      map.flyTo([location.lat, location.lng], 6, { duration: 1.5 });
+      map.flyTo([location.lat, location.lng], zoomForLocation(location), {
+        duration: 1.5,
+      });
     }
   }, [location, map]);
   return null;

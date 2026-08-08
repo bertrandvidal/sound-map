@@ -7,7 +7,7 @@ import {
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../geo.js", () => ({
+vi.mock("../../../shared/geocode.js", () => ({
   lookupArtistLocation: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("../../spotify.js", () => ({
@@ -79,7 +79,7 @@ vi.mock("../LibraryLoadingBadge.jsx", () => ({
   ),
 }));
 
-import { lookupArtistLocation } from "../../geo.js";
+import { lookupArtistLocation } from "../../../shared/geocode.js";
 import {
   fetchCurrentlyPlaying,
   pause,
@@ -422,6 +422,38 @@ describe("MapView explore mode", () => {
       "true",
     );
     expect(screen.getByTestId("library-artist-count")).toHaveTextContent("1");
+  });
+
+  it("drops the idle prompt while browsing the library, and brings it back on exit", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(null);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByText("Play something on Spotify")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId("browse-library-button"));
+    expect(
+      screen.queryByText("Play something on Spotify"),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("browse-library-button"));
+    expect(screen.getByText("Play something on Spotify")).toBeInTheDocument();
+  });
+
+  it("still surfaces a poll error while in explore mode", async () => {
+    fetchCurrentlyPlaying.mockRejectedValue(new Error("SPOTIFY_ERROR:500"));
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(
+        screen.getByText("Something went wrong. Check the console."),
+      ).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId("browse-library-button"));
+
+    expect(
+      screen.getByText("Something went wrong. Check the console."),
+    ).toBeInTheDocument();
   });
 
   // Fix 2: the stale-scope warning renders inside NowPlayingCard today, which

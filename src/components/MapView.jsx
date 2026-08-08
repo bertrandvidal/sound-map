@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { lookupArtistLocation } from "../../shared/geocode.js";
 import { devLog } from "../devLog.js";
-import { lookupArtistLocation } from "../geo.js";
 import { classifyPollError } from "../pollError.js";
 import { fetchCurrentlyPlaying, pause, play, skipToNext } from "../spotify.js";
 import { MUTED, overlayCardStyle } from "../theme.js";
@@ -11,7 +11,14 @@ import LibraryLoadingBadge from "./LibraryLoadingBadge.jsx";
 import NowPlayingCard from "./NowPlayingCard.jsx";
 
 const POLL_MS = 5_000;
-const PACIFIC_FALLBACK = { lat: 0, lng: -160, placeName: "Unknown location" };
+// `unknown` marks this as the we-have-no-idea placeholder rather than a real
+// resolved origin; LeafletMap keys its fly-to zoom off it (see UNKNOWN_ZOOM).
+const PACIFIC_FALLBACK = {
+  lat: 0,
+  lng: -160,
+  placeName: "Unknown location",
+  unknown: true,
+};
 const SCOPE_WARNING = "Log out and back in to enable Browse Library";
 
 // Fix 1 (final whole-branch review): explore mode's flagship feature — the
@@ -218,8 +225,14 @@ export default function MapView({ token, onTokenExpired }) {
     );
   }
 
+  // "Play something on Spotify" is a prompt for the now-playing view — it's
+  // the map's empty state. In explore mode the map isn't empty (it's showing
+  // the clustered library) and the user is deliberately browsing rather than
+  // listening, so the prompt is just a card floating over content they asked
+  // for. The error message is kept in both modes: it reports a real failure
+  // the user should know about, not an empty state.
   const statusOverlayMessage =
-    status === "idle"
+    status === "idle" && !exploreMode
       ? "Play something on Spotify"
       : status === "error"
         ? "Something went wrong. Check the console."

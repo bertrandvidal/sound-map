@@ -13,7 +13,12 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary", "json"],
-      include: ["src/**/*.{js,jsx}", "server/**/*.js", "api/**/*.js"],
+      include: [
+        "src/**/*.{js,jsx}",
+        "server/**/*.js",
+        "api/**/*.js",
+        "shared/**/*.js",
+      ],
       // Disallow-list: the ONLY files exempt from the strict per-file bar below.
       // Everything else — including any NEW file — must meet the bar. Do not add
       // a file here to make coverage pass; if a file can't be tested, ask first.
