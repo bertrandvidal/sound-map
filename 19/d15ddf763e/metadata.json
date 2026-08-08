@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "19d15ddf763e",
+  "strategy": "manual-commit",
+  "branch": "geocode-throttle-tuning",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CLAUDE.md",
+    "api/__tests__/geocode.test.js",
+    "api/geocode.js",
+    "server/__tests__/kv.test.js",
+    "server/kv.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/19/d15ddf763e/0/metadata.json",
+      "transcript": "/19/d15ddf763e/0/full.jsonl",
+      "compact_transcript": "/19/d15ddf763e/0/transcript.jsonl",
+      "content_hash": "/19/d15ddf763e/0/content_hash.txt",
+      "prompt": "/19/d15ddf763e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 54,
+    "cache_creation_tokens": 46974,
+    "cache_read_tokens": 6362105,
+    "output_tokens": 26010,
+    "api_call_count": 29
+  }
+}

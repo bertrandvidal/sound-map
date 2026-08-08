@@ -1,0 +1,56 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "19d15ddf763e",
+  "session_id": "e8bdbbf9-027a-4110-9ddf-05e31fb43729",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-08T22:45:02.333316Z",
+  "branch": "geocode-throttle-tuning",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "server/kv.js",
+    "api/geocode.js",
+    "server/__tests__/kv.test.js",
+    "api/__tests__/geocode.test.js",
+    "CLAUDE.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5",
+  "turn_id": "8c2c9e43825d",
+  "checkpoint_transcript_start": 619,
+  "transcript_lines_at_start": 619,
+  "compact_transcript_start": 159,
+  "token_usage": {
+    "input_tokens": 54,
+    "cache_creation_tokens": 46974,
+    "cache_read_tokens": 6362105,
+    "output_tokens": 26010,
+    "api_call_count": 29
+  },
+  "session_metrics": {
+    "turn_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-08T22:45:02.284561Z",
+    "agent_lines": 592,
+    "agent_removed": 63,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 592,
+    "total_lines_changed": 655,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 44,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 44
+      }
+    }
+  ]
+}

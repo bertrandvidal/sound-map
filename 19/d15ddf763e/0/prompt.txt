@@ -1,0 +1,1 @@
+Let's do the fencing token + early release on this branch. Should we add time measurements? So we know how long each lookup took and what's the average? We could store the results in a specific key in redis for me to look up later on. That way we get real data from prod.
