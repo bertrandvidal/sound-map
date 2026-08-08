@@ -1,0 +1,13 @@
+RE: flush no one used the app, redis still empty; RE: prefix key naaaah all good
+
+---
+
+Instead of holding the musicbrainz lock twice as long could the lease be extended if a second request is needed? Or is a the second request always sent?
+
+---
+
+What would pipelining look like?
+
+---
+
+PR 25 has been merged and deployed. On a new branch from up to date 'main' let's do lever 1 and 2 and reevaluate
