@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "ec4113708fb7",
+  "strategy": "manual-commit",
+  "branch": "map-polish-fixes",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "package-lock.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ec/4113708fb7/0/metadata.json",
+      "transcript": "/ec/4113708fb7/0/full.jsonl",
+      "compact_transcript": "/ec/4113708fb7/0/transcript.jsonl",
+      "content_hash": "/ec/4113708fb7/0/content_hash.txt",
+      "prompt": "/ec/4113708fb7/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 11351,
+    "cache_read_tokens": 2091591,
+    "output_tokens": 9845,
+    "api_call_count": 15
+  }
+}

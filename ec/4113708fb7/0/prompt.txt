@@ -1,0 +1,9 @@
+If we flush the cache what would happen?
+
+---
+
+Do you have the ability of flushing the cache via the Vercel plugin/mcp?
+
+---
+
+Flushed it. Push and open the PR then open a browser tab so I can review it
