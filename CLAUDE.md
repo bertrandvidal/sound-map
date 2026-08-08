@@ -70,7 +70,25 @@ Area names are not unique, and Nominatim ranks a free-text search by "importance
 
 **`server/kv.js`** — Redis cache (`geo:<artistId>`, `not_found` results cached 30 days, `resolved` results cached 180 days — long enough to be effective, bounded so a bad fuzzy-match MusicBrainz result doesn't stick forever) and throttle lock (`throttle:<service>`, via `SET NX PX`) backing `api/geocode.js`.
 
-Two throughput details live here. `geo:area:<mbid>` caches an area's **parent area** separately from any artist: containment is a fact about geography, shared by every artist from that city, and artists cluster hard in a few cities — so the second MusicBrainz call is usually a Redis hit. A parent lookup that *failed* is deliberately not cached, or a transient MusicBrainz outage would pin itself in Redis for 180 days. `getThrottleRetryMs` answers a denied caller with the lock's real remaining `PTTL` rather than a constant, because the client sleeps exactly that long before retrying (`useLibraryArtists.js`) — a constant overshoots and leaves the upstream idle. Constructs the `Redis` client explicitly against `REDIS_KV_REST_API_URL`/`REDIS_KV_REST_API_TOKEN` — **not** `Redis.fromEnv()`, which doesn't recognize the `REDIS_`-prefixed names the Vercel Marketplace Upstash integration injects (see `.env.example`).
+Several throughput details live here:
+
+- **`geo:area:<mbid>`** caches an area's **parent area** separately from any artist: containment is a fact about geography, shared by every artist from that city, and artists cluster hard in a few cities — so the second MusicBrainz call is usually a Redis hit. A parent lookup that *failed* is deliberately not cached, or a transient MusicBrainz outage would pin itself in Redis for 180 days.
+- **`getThrottleRetryMs`** answers a denied caller with the lock's real remaining `PTTL` rather than a constant, because the client sleeps exactly that long before retrying (`useLibraryArtists.js`) — a constant overshoots and leaves the upstream idle.
+- **The throttle lock is fenced.** `acquireThrottle` stores a random token as the lock's value and returns it; `releaseThrottleAfter` shortens (or drops) the lock through a Lua compare-and-set that first checks the token still matches. That is what makes `api/geocode.js`'s *early release* safe: it reserves two intervals because it cannot know a lookup's shape in advance, then hands back the second one when only one MusicBrainz call was actually spent. Without the token, a holder whose lease had already lapsed would be shortening whatever lock is there *now* — someone else's.
+- **Never hand back the whole remainder.** The one call that did happen still owes a full interval from acquisition, so the remainder is `minIntervalMs - elapsed`. Releasing outright would let a 300ms lookup free the lock immediately and blow the 1 req/s budget.
+
+### Reading the geocode metrics
+
+`recordLookupMetrics` writes running totals and a capped sample of recent lookups. Both are best-effort — measurement can never fail a request. From the Upstash console:
+
+```
+HGETALL metrics:geocode          # count, totalMs, totalUpstreamMs, musicBrainzCalls,
+                                 # areaCacheHits/Misses, resolved, notFound, cacheHits,
+                                 # throttledMusicBrainz, throttledNominatim
+LRANGE  metrics:geocode:recent 0 -1   # last 500 lookups
+```
+
+Average duration is `totalMs / count`. The samples carry `at`, so the gap between consecutive entries gives the **cadence** — the number the throttle work actually targets, which a per-request duration alone won't tell you. Artist-cache hits and throttle denials only bump counters; sampling them would push real lookups out of the capped list. Constructs the `Redis` client explicitly against `REDIS_KV_REST_API_URL`/`REDIS_KV_REST_API_TOKEN` — **not** `Redis.fromEnv()`, which doesn't recognize the `REDIS_`-prefixed names the Vercel Marketplace Upstash integration injects (see `.env.example`).
 
 ### Environment variables
 
