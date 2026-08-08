@@ -164,10 +164,11 @@ describe("POST /api/geocode", () => {
     expect(lookup).not.toHaveBeenCalled();
   });
 
-  it("returns throttled when the MusicBrainz lock cannot be acquired", async () => {
+  it("returns throttled when the MusicBrainz lock cannot be acquired, and tells the client the lock's real remaining time", async () => {
     const redis = {
       get: vi.fn().mockResolvedValue(null),
       set: vi.fn().mockResolvedValue(null), // lock already held elsewhere
+      pttl: vi.fn().mockResolvedValue(640), // ...with 640ms left on it
     };
     const lookup = vi.fn();
     const res = mockRes();
@@ -179,12 +180,14 @@ describe("POST /api/geocode", () => {
     );
 
     expect(res.statusCode).toBe(200);
-    // The MusicBrainz lock is held for two intervals, not one: a lookup can
-    // spend two MusicBrainz requests back-to-back (artist search, then the
-    // area-parent lookup that disambiguates a city name), so the reservation
-    // — and the retry the client is told to make — covers both.
-    expect(res.body).toEqual({ status: "throttled", retryAfterMs: 2200 });
+    // Not the 2200ms hold: sleeping a full hold when only 640ms remains
+    // leaves the lock idle for the difference on every denial.
+    expect(res.body).toEqual({ status: "throttled", retryAfterMs: 640 });
+    expect(redis.pttl).toHaveBeenCalledWith("throttle:musicbrainz");
     expect(lookup).not.toHaveBeenCalled();
+    // The MusicBrainz lock is still *held* for two intervals: a lookup can
+    // spend two MusicBrainz requests back-to-back (artist search, then the
+    // area-parent lookup that disambiguates a city name).
     expect(redis.set).toHaveBeenCalledTimes(1);
     expect(redis.set).toHaveBeenCalledWith("throttle:musicbrainz", "1", {
       nx: true,
@@ -192,11 +195,11 @@ describe("POST /api/geocode", () => {
     });
   });
 
-  it("honors an explicit GEOCODE_MIN_INTERVAL_MS override in the throttled response", async () => {
-    vi.stubEnv("GEOCODE_MIN_INTERVAL_MS", "500");
+  it("falls back to the full hold when PTTL cannot answer", async () => {
     const redis = {
       get: vi.fn().mockResolvedValue(null),
       set: vi.fn().mockResolvedValue(null),
+      pttl: vi.fn().mockRejectedValue(new Error("upstash down")),
     };
     const res = mockRes();
 
@@ -206,7 +209,28 @@ describe("POST /api/geocode", () => {
       { redis, lookupArtistLocation: vi.fn() },
     );
 
-    expect(res.body).toEqual({ status: "throttled", retryAfterMs: 1000 });
+    // Degrades to the old constant rather than to "unavailable" — a failed
+    // retry *hint* is not a failed request.
+    expect(res.body).toEqual({ status: "throttled", retryAfterMs: 2200 });
+  });
+
+  it("honors an explicit GEOCODE_MIN_INTERVAL_MS override in the throttled response", async () => {
+    vi.stubEnv("GEOCODE_MIN_INTERVAL_MS", "500");
+    const redis = {
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn().mockResolvedValue(null),
+      pttl: vi.fn().mockResolvedValue(-2), // freed between the SET and the PTTL
+    };
+    const res = mockRes();
+
+    await geocodeHandler(
+      mockReq({ body: { artistId: "artist-1", artistName: "Test" } }),
+      res,
+      { redis, lookupArtistLocation: vi.fn() },
+    );
+
+    // Already free — come straight back and let SET NX arbitrate.
+    expect(res.body).toEqual({ status: "throttled", retryAfterMs: 0 });
     expect(redis.set).toHaveBeenCalledWith("throttle:musicbrainz", "1", {
       nx: true,
       px: 1000,
@@ -254,6 +278,7 @@ describe("POST /api/geocode", () => {
         .fn()
         .mockResolvedValueOnce("OK") // musicbrainz throttle granted
         .mockResolvedValueOnce(null), // nominatim throttle denied (2nd lock)
+      pttl: vi.fn().mockResolvedValue(310),
     };
     const lookup = vi.fn(async (_artistName, { acquireNominatimThrottle }) => {
       const granted = await acquireNominatimThrottle();
@@ -268,7 +293,10 @@ describe("POST /api/geocode", () => {
     );
 
     expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual({ status: "throttled", retryAfterMs: 1100 });
+    // The retry hint must come from the lock that actually denied us — the
+    // Nominatim one — not from the MusicBrainz lock this request holds.
+    expect(res.body).toEqual({ status: "throttled", retryAfterMs: 310 });
+    expect(redis.pttl).toHaveBeenCalledWith("throttle:nominatim");
     // Both the musicbrainz and nominatim locks were attempted; no cache write.
     expect(redis.set).toHaveBeenCalledTimes(2);
     // Regression guard: the two locks must use distinct keys. A refactor that
@@ -283,6 +311,36 @@ describe("POST /api/geocode", () => {
       nx: true,
       px: 1100,
     });
+  });
+
+  it("hands the lookup an areaCache wired to the geo:area: keys", async () => {
+    const redis = {
+      get: vi
+        .fn()
+        .mockResolvedValueOnce(null) // artist cache miss
+        .mockResolvedValueOnce("Grays Harbor County"), // area cache hit
+      set: vi.fn().mockResolvedValue("OK"),
+    };
+    const lookup = vi.fn(async (_artistName, { areaCache }) => {
+      expect(await areaCache.get("aberdeen-area-id")).toBe(
+        "Grays Harbor County",
+      );
+      await areaCache.set("other-area-id", "Some County");
+      return { lat: 1, lng: 2, placeName: "X" };
+    });
+
+    await geocodeHandler(
+      mockReq({ body: { artistId: "artist-1", artistName: "Nirvana" } }),
+      mockRes(),
+      { redis, lookupArtistLocation: lookup },
+    );
+
+    expect(redis.get).toHaveBeenCalledWith("geo:area:aberdeen-area-id");
+    expect(redis.set).toHaveBeenCalledWith(
+      "geo:area:other-area-id",
+      "Some County",
+      { ex: 15552000 },
+    );
   });
 
   it("caches and returns a resolved location on the full success path", async () => {

@@ -1,7 +1,10 @@
 import { COOKIE_NAME, openSession, parseCookies } from "../server/auth.js";
 import {
   createRedisClient,
+  getCachedAreaParent,
   getCachedArtist,
+  getThrottleRetryMs,
+  setCachedAreaParent,
   setCachedArtist,
   tryAcquireThrottle,
 } from "../server/kv.js";
@@ -61,11 +64,17 @@ export async function geocodeHandler(req, res, deps = {}) {
     // client's retry would fail the same way forever.
     const musicBrainzHoldMs = minIntervalMs * MUSICBRAINZ_CALLS_PER_LOOKUP;
     if (!(await tryAcquireThrottle(redis, "musicbrainz", musicBrainzHoldMs))) {
-      // Retry after the full hold, not one interval: coming back sooner just
-      // spends a round-trip on a lock that is still held.
-      return res
-        .status(200)
-        .json({ status: "throttled", retryAfterMs: musicBrainzHoldMs });
+      // Retry when the lock actually frees, not after a fixed interval. A
+      // constant here is wrong in both directions: too small burns a
+      // round-trip on a lock that is still held, too large leaves it idle.
+      return res.status(200).json({
+        status: "throttled",
+        retryAfterMs: await getThrottleRetryMs(
+          redis,
+          "musicbrainz",
+          musicBrainzHoldMs,
+        ),
+      });
     }
 
     // lookup() does both the MusicBrainz and (if needed) Nominatim calls
@@ -73,11 +82,21 @@ export async function geocodeHandler(req, res, deps = {}) {
     const location = await lookup(artistName, {
       acquireNominatimThrottle: () =>
         tryAcquireThrottle(redis, "nominatim", minIntervalMs),
+      areaCache: {
+        get: (areaId) => getCachedAreaParent(redis, areaId),
+        set: (areaId, parentName) =>
+          setCachedAreaParent(redis, areaId, parentName),
+      },
     });
     if (location === "THROTTLED") {
-      return res
-        .status(200)
-        .json({ status: "throttled", retryAfterMs: minIntervalMs });
+      return res.status(200).json({
+        status: "throttled",
+        retryAfterMs: await getThrottleRetryMs(
+          redis,
+          "nominatim",
+          minIntervalMs,
+        ),
+      });
     }
 
     const value = location

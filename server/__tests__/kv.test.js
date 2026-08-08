@@ -8,7 +8,10 @@ vi.mock("@upstash/redis", () => ({
 
 const {
   createRedisClient,
+  getCachedAreaParent,
   getCachedArtist,
+  getThrottleRetryMs,
+  setCachedAreaParent,
   setCachedArtist,
   tryAcquireThrottle,
 } = await import("../kv.js");
@@ -102,5 +105,71 @@ describe("tryAcquireThrottle", () => {
     const acquired = await tryAcquireThrottle(redis, "musicbrainz", 1000);
 
     expect(acquired).toBe(false);
+  });
+});
+
+describe("getThrottleRetryMs", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  it("reports the lock's actual remaining lifetime", async () => {
+    const redis = { pttl: vi.fn().mockResolvedValue(640) };
+
+    expect(await getThrottleRetryMs(redis, "musicbrainz", 2200)).toBe(640);
+    expect(redis.pttl).toHaveBeenCalledWith("throttle:musicbrainz");
+  });
+
+  it("says retry immediately when the key is already gone (PTTL -2)", async () => {
+    const redis = { pttl: vi.fn().mockResolvedValue(-2) };
+
+    expect(await getThrottleRetryMs(redis, "musicbrainz", 2200)).toBe(0);
+  });
+
+  it("says retry immediately when the key has no expiry (PTTL -1)", async () => {
+    const redis = { pttl: vi.fn().mockResolvedValue(-1) };
+
+    expect(await getThrottleRetryMs(redis, "nominatim", 1100)).toBe(0);
+  });
+
+  it("falls back to the caller's interval when PTTL itself fails", async () => {
+    const redis = {
+      pttl: vi.fn().mockRejectedValue(new Error("upstash down")),
+    };
+
+    expect(await getThrottleRetryMs(redis, "nominatim", 1100)).toBe(1100);
+  });
+});
+
+describe("area parent cache", () => {
+  it("returns null on a miss", async () => {
+    const redis = { get: vi.fn().mockResolvedValue(null) };
+
+    expect(await getCachedAreaParent(redis, "area-1")).toBeNull();
+    expect(redis.get).toHaveBeenCalledWith("geo:area:area-1");
+  });
+
+  it("returns the containing area's name on a hit", async () => {
+    const redis = { get: vi.fn().mockResolvedValue("Grays Harbor County") };
+
+    expect(await getCachedAreaParent(redis, "area-1")).toBe(
+      "Grays Harbor County",
+    );
+  });
+
+  it("stores the parent under its own key, keyed by area rather than artist", async () => {
+    const redis = { set: vi.fn().mockResolvedValue("OK") };
+
+    await setCachedAreaParent(redis, "area-1", "Grays Harbor County");
+
+    // Same 180-day TTL as a resolved artist. Area containment is a fact about
+    // geography — it is shared by every artist from that city, which is the
+    // whole point of caching it separately from `geo:<artistId>`.
+    expect(redis.set).toHaveBeenCalledWith(
+      "geo:area:area-1",
+      "Grays Harbor County",
+      { ex: 15552000 },
+    );
   });
 });
