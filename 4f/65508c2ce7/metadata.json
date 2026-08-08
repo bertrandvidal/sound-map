@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "4f65508c2ce7",
+  "strategy": "manual-commit",
+  "branch": "map-polish-fixes",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CLAUDE.md",
+    "api/geocode.js",
+    "shared/__tests__/geocode.test.js",
+    "src/components/MapView.jsx",
+    "vite.config.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4f/65508c2ce7/0/metadata.json",
+      "transcript": "/4f/65508c2ce7/0/full.jsonl",
+      "compact_transcript": "/4f/65508c2ce7/0/transcript.jsonl",
+      "content_hash": "/4f/65508c2ce7/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 52,
+    "cache_creation_tokens": 46078,
+    "cache_read_tokens": 2164333,
+    "output_tokens": 18416,
+    "api_call_count": 28
+  }
+}
