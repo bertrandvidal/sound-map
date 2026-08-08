@@ -5,7 +5,10 @@ import {
   setCachedArtist,
   tryAcquireThrottle,
 } from "../server/kv.js";
-import { lookupArtistLocation } from "../shared/geocode.js";
+import {
+  lookupArtistLocation,
+  MUSICBRAINZ_CALLS_PER_LOOKUP,
+} from "../shared/geocode.js";
 
 export async function geocodeHandler(req, res, deps = {}) {
   if (req.method !== "POST") {
@@ -49,10 +52,20 @@ export async function geocodeHandler(req, res, deps = {}) {
     const cached = await getCachedArtist(redis, artistId);
     if (cached) return res.status(200).json(cached);
 
-    if (!(await tryAcquireThrottle(redis, "musicbrainz", minIntervalMs))) {
+    // Held for MUSICBRAINZ_CALLS_PER_LOOKUP intervals, not one: a lookup can
+    // spend two MusicBrainz requests (artist search, then the area-parent
+    // lookup that disambiguates "Aberdeen"), and they run back-to-back inside
+    // lookup(). Reserving the airtime up front keeps the *average* rate inside
+    // MusicBrainz's 1 req/s budget; trying to take a second slot mid-lookup
+    // instead would just fail against the lock this one still holds, and the
+    // client's retry would fail the same way forever.
+    const musicBrainzHoldMs = minIntervalMs * MUSICBRAINZ_CALLS_PER_LOOKUP;
+    if (!(await tryAcquireThrottle(redis, "musicbrainz", musicBrainzHoldMs))) {
+      // Retry after the full hold, not one interval: coming back sooner just
+      // spends a round-trip on a lock that is still held.
       return res
         .status(200)
-        .json({ status: "throttled", retryAfterMs: minIntervalMs });
+        .json({ status: "throttled", retryAfterMs: musicBrainzHoldMs });
     }
 
     // lookup() does both the MusicBrainz and (if needed) Nominatim calls

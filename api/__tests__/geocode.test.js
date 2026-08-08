@@ -179,12 +179,16 @@ describe("POST /api/geocode", () => {
     );
 
     expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual({ status: "throttled", retryAfterMs: 1100 });
+    // The MusicBrainz lock is held for two intervals, not one: a lookup can
+    // spend two MusicBrainz requests back-to-back (artist search, then the
+    // area-parent lookup that disambiguates a city name), so the reservation
+    // — and the retry the client is told to make — covers both.
+    expect(res.body).toEqual({ status: "throttled", retryAfterMs: 2200 });
     expect(lookup).not.toHaveBeenCalled();
     expect(redis.set).toHaveBeenCalledTimes(1);
     expect(redis.set).toHaveBeenCalledWith("throttle:musicbrainz", "1", {
       nx: true,
-      px: 1100,
+      px: 2200,
     });
   });
 
@@ -202,10 +206,10 @@ describe("POST /api/geocode", () => {
       { redis, lookupArtistLocation: vi.fn() },
     );
 
-    expect(res.body).toEqual({ status: "throttled", retryAfterMs: 500 });
+    expect(res.body).toEqual({ status: "throttled", retryAfterMs: 1000 });
     expect(redis.set).toHaveBeenCalledWith("throttle:musicbrainz", "1", {
       nx: true,
-      px: 500,
+      px: 1000,
     });
   });
 
@@ -273,7 +277,7 @@ describe("POST /api/geocode", () => {
     // which we hit both upstreams.
     expect(redis.set).toHaveBeenNthCalledWith(1, "throttle:musicbrainz", "1", {
       nx: true,
-      px: 1100,
+      px: 2200, // two intervals: artist search + area-parent lookup
     });
     expect(redis.set).toHaveBeenNthCalledWith(2, "throttle:nominatim", "1", {
       nx: true,
