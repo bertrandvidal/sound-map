@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { lookupArtistLocation } from "../../shared/geocode.js";
 import { devLog } from "../devLog.js";
-import { lookupArtistLocation } from "../geo.js";
 import { classifyPollError } from "../pollError.js";
 import { fetchCurrentlyPlaying, pause, play, skipToNext } from "../spotify.js";
 import { MUTED, overlayCardStyle } from "../theme.js";

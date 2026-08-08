@@ -7,7 +7,7 @@ import {
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../geo.js", () => ({
+vi.mock("../../../shared/geocode.js", () => ({
   lookupArtistLocation: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("../../spotify.js", () => ({
@@ -79,7 +79,7 @@ vi.mock("../LibraryLoadingBadge.jsx", () => ({
   ),
 }));
 
-import { lookupArtistLocation } from "../../geo.js";
+import { lookupArtistLocation } from "../../../shared/geocode.js";
 import {
   fetchCurrentlyPlaying,
   pause,

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { lookupArtistLocation } from "../geocode.js";
 
-describe("server/geocode - lookupArtistLocation", () => {
+describe("shared/geocode - lookupArtistLocation", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -116,7 +116,7 @@ describe("server/geocode - lookupArtistLocation", () => {
   });
 });
 
-describe("server/geocode - lookupArtistLocation with acquireNominatimThrottle", () => {
+describe("shared/geocode - lookupArtistLocation with acquireNominatimThrottle", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });

@@ -1,11 +1,11 @@
 import { COOKIE_NAME, openSession, parseCookies } from "../server/auth.js";
-import { lookupArtistLocation } from "../server/geocode.js";
 import {
   createRedisClient,
   getCachedArtist,
   setCachedArtist,
   tryAcquireThrottle,
 } from "../server/kv.js";
+import { lookupArtistLocation } from "../shared/geocode.js";
 
 export async function geocodeHandler(req, res, deps = {}) {
   if (req.method !== "POST") {
