@@ -54,6 +54,37 @@
         "label": "Skill: superpowers:executing-plans",
         "default_collapsed": true
       }
+    },
+    {
+      "id": "claude-skill-toolu_01Q3M4r1crNBTpTVxDmUmmuN",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:finishing-a-development-branch"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "16d87f50849f",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 152,
+        "end": 153,
+        "entry_ids": [
+          "09641415-5ce4-4a72-ba67-4be70ebd6899"
+        ],
+        "tool_use_id": "toolu_01Q3M4r1crNBTpTVxDmUmmuN"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01Q3M4r1crNBTpTVxDmUmmuN"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:finishing-a-development-branch",
+        "default_collapsed": true
+      }
     }
   ],
   "initial_attribution": {
