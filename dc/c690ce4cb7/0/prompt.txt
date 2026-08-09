@@ -1,0 +1,13 @@
+No need to add this env variablee to vercel's env vars?
+
+---
+
+Nah all good there. 1. I flushed + deployed it's reloading, I'll ping when done make sure you have the info stored on file (outside of the repo for later check) give me the path so I can feed it to another agent 2. when login for the first time and in browsing mode with nothing playing, clicking an artist shows 'playback control not available' 3. Flea the bass player from the Red Hot is showing in Melbourne Victoria in Australia, this feels off and feels like workers are crossing streams or using the first result from a list is the wrong assumption. Take those one at a time
+
+---
+
+'sup
+
+---
+
+Implement B + give me instructions to clear rt cookie on my machine
