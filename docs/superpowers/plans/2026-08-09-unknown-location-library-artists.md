@@ -17,6 +17,16 @@ client re-interprets the `not_found` status it already receives, so the
 **Tech Stack:** Vite + React SPA, Vitest (`jsdom`), Biome, react-leaflet /
 react-leaflet-cluster.
 
+**Execution:** Dispatch a **Haiku** subagent per task. Every step below carries
+its literal test body and implementation code, so execution here is
+transcription plus running two commands — there is no design judgment left to
+spend a larger model on. The reasoning was already paid for in brainstorming
+and in writing this plan; running it inline on Opus buys nothing.
+
+Escalate to Sonnet only if a task actually requires a decision the plan didn't
+make. If a plan can't name a cheap executor, that's a signal the plan is
+underspecified — fix the plan rather than the model.
+
 Design doc: `docs/superpowers/specs/2026-08-09-unknown-location-library-artists-design.md`
 
 ## Global Constraints
