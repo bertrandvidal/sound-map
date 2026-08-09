@@ -208,9 +208,28 @@ describe("MapView poll loop", () => {
     expect(screen.getByTestId("now-playing-card")).toBeInTheDocument();
   });
 
-  it("shows a control message when playback control fails", async () => {
+  // Each of these is a condition the user can do something about, and
+  // spotify.js already tells them apart. Reporting one generic string for all
+  // of them is what made "nothing playing + click an artist" read as a bug
+  // instead of as "open Spotify somewhere".
+  it.each([
+    ["PLAYBACK_UNAVAILABLE", "Spotify Premium is required to control playback"],
+    ["NO_ACTIVE_DEVICE", "Open Spotify on any device, then try again"],
+    ["INSUFFICIENT_SCOPE", "Log out and back in to enable playback control"],
+  ])("maps %s to an actionable control message", async (code, message) => {
     fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
-    pause.mockRejectedValueOnce(new Error("PLAYBACK_UNAVAILABLE"));
+    pause.mockRejectedValueOnce(new Error(code));
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-card")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByText("play-pause"));
+    await waitFor(() => expect(screen.getByText(message)).toBeInTheDocument());
+  });
+
+  it("falls back to the generic message for an unrecognized control failure", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    pause.mockRejectedValueOnce(new Error("SPOTIFY_ERROR:500"));
     render(<MapView token="t" onTokenExpired={vi.fn()} />);
     await waitFor(() =>
       expect(screen.getByTestId("now-playing-card")).toBeInTheDocument(),
@@ -658,7 +677,7 @@ describe("MapView explore mode", () => {
     fireEvent.click(screen.getByText("play-pause"));
     await waitFor(() =>
       expect(
-        screen.getByText("Playback control not available"),
+        screen.getByText("Spotify Premium is required to control playback"),
       ).toBeInTheDocument(),
     );
     // only one message slot is rendered — the transient one wins while it lasts

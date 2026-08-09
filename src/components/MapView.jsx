@@ -21,6 +21,19 @@ const PACIFIC_FALLBACK = {
 };
 const SCOPE_WARNING = "Log out and back in to enable Browse Library";
 
+// A playback failure the user can act on beats an accurate one they can't.
+// spotify.js already distinguishes these cases; collapsing them into one
+// string was the whole reason "nothing playing + click an artist" read as a
+// bug rather than as "open Spotify somewhere". Only NO_ACTIVE_DEVICE survives
+// play()'s device fallback — by then it means nothing is open ANYWHERE, which
+// no API call can fix.
+const CONTROL_MESSAGES = {
+  NO_ACTIVE_DEVICE: "Open Spotify on any device, then try again",
+  PLAYBACK_UNAVAILABLE: "Spotify Premium is required to control playback",
+  INSUFFICIENT_SCOPE: "Log out and back in to enable playback control",
+};
+const CONTROL_FALLBACK = "Playback control not available";
+
 // Fix 1 (final whole-branch review): explore mode's flagship feature — the
 // clustered library map — must be reachable no matter what the now-playing
 // poll is doing. These two states used to be full-screen early returns that
@@ -188,7 +201,7 @@ export default function MapView({ token, onTokenExpired }) {
       if (err.message === "TOKEN_EXPIRED") {
         await refreshToken();
       } else {
-        setControlMessage("Playback control not available");
+        setControlMessage(CONTROL_MESSAGES[err.message] ?? CONTROL_FALLBACK);
       }
       return false;
     }

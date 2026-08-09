@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchCurrentlyPlaying,
+  fetchDevices,
   fetchFollowedArtists,
   pause,
   play,
@@ -232,6 +233,189 @@ describe("player controls (play / pause / skipToNext)", () => {
     });
     expect(init.body).toBeUndefined();
     expect(init.headers["Content-Type"]).toBeUndefined();
+  });
+});
+
+describe("fetchDevices", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const ok = (body) =>
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        headers: { get: () => null },
+        json: async () => body,
+      }),
+    );
+
+  it("returns the device list", async () => {
+    ok({ devices: [{ id: "d1", name: "Laptop", is_active: false }] });
+    await expect(fetchDevices("token")).resolves.toEqual([
+      { id: "d1", name: "Laptop", is_active: false },
+    ]);
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.spotify.com/v1/me/player/devices",
+      { headers: { Authorization: "Bearer token" } },
+    );
+  });
+
+  it("returns [] when Spotify omits the devices key", async () => {
+    ok({});
+    await expect(fetchDevices("token")).resolves.toEqual([]);
+  });
+
+  it("throws INSUFFICIENT_SCOPE on 403, not PLAYBACK_UNAVAILABLE", async () => {
+    // A session minted before user-read-playback-state was requested. This
+    // is stale consent, not a missing Premium subscription — conflating them
+    // would tell the user to buy something they already have.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 403,
+        ok: false,
+        headers: { get: () => null },
+      }),
+    );
+    await expect(fetchDevices("token")).rejects.toThrow("INSUFFICIENT_SCOPE");
+  });
+
+  it("throws TOKEN_EXPIRED on 401", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 401,
+        ok: false,
+        headers: { get: () => null },
+      }),
+    );
+    await expect(fetchDevices("token")).rejects.toThrow("TOKEN_EXPIRED");
+  });
+});
+
+describe("play device fallback (no active device)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const noDevice = { status: 404, ok: false, headers: { get: () => null } };
+  const success = { status: 204, ok: true, headers: { get: () => null } };
+  const devices = (list) => ({
+    status: 200,
+    ok: true,
+    headers: { get: () => null },
+    json: async () => ({ devices: list }),
+  });
+
+  it("retries against a reachable device when the bare play call 404s", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(noDevice)
+      .mockResolvedValueOnce(devices([{ id: "d1", is_active: false }]))
+      .mockResolvedValueOnce(success);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      play("token", { contextUri: "spotify:artist:123" }),
+    ).resolves.toBeUndefined();
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[2][0]).toBe(
+      "https://api.spotify.com/v1/me/player/play?device_id=d1",
+    );
+    // the retry must carry the same context, or it would start the wrong music
+    expect(fetchMock.mock.calls[2][1].body).toBe(
+      '{"context_uri":"spotify:artist:123"}',
+    );
+  });
+
+  it("prefers an already-active device and skips restricted ones", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(noDevice)
+      .mockResolvedValueOnce(
+        devices([
+          // is_restricted devices accept no Web API commands, so targeting
+          // one would turn a visible 404 into a silent no-op.
+          { id: "restricted", is_restricted: true, is_active: true },
+          { id: "idle", is_active: false },
+          { id: "active", is_active: true },
+        ]),
+      )
+      .mockResolvedValueOnce(success);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await play("token");
+    expect(fetchMock.mock.calls[2][0]).toBe(
+      "https://api.spotify.com/v1/me/player/play?device_id=active",
+    );
+  });
+
+  it("rethrows NO_ACTIVE_DEVICE when nothing is open anywhere", async () => {
+    // No API call can fix this — the user has to open Spotify — so the error
+    // keeps its original meaning for MapView to turn into that instruction.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(noDevice)
+      .mockResolvedValueOnce(devices([]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(play("token")).rejects.toThrow("NO_ACTIVE_DEVICE");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("rethrows NO_ACTIVE_DEVICE when every device is restricted", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(noDevice)
+      .mockResolvedValueOnce(devices([{ id: "r", is_restricted: true }]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(play("token")).rejects.toThrow("NO_ACTIVE_DEVICE");
+  });
+
+  it("surfaces INSUFFICIENT_SCOPE from the device lookup", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(noDevice)
+      .mockResolvedValueOnce({
+        status: 403,
+        ok: false,
+        headers: { get: () => null },
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(play("token")).rejects.toThrow("INSUFFICIENT_SCOPE");
+  });
+
+  it("does not re-resolve when an explicit deviceId 404s", async () => {
+    // An explicit device that 404s is dead, not missing — re-resolving would
+    // consult the same list and could pick it again.
+    const fetchMock = vi.fn().mockResolvedValueOnce(noDevice);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(play("token", { deviceId: "d9" })).rejects.toThrow(
+      "NO_ACTIVE_DEVICE",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "https://api.spotify.com/v1/me/player/play?device_id=d9",
+    );
+  });
+
+  it("does not consult devices for a non-404 failure", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      status: 403,
+      ok: false,
+      headers: { get: () => null },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(play("token")).rejects.toThrow("PLAYBACK_UNAVAILABLE");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 
