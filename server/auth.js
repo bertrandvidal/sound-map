@@ -2,8 +2,16 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
 const SPOTIFY_AUTHORIZE_URL = "https://accounts.spotify.com/authorize";
+// user-read-playback-state is needed for GET /me/player/devices, which is how
+// play() recovers from "no active device": Spotify refuses a bare play call
+// when nothing is currently playing, but an idle-but-open client still shows
+// up in that list and can be targeted with device_id. Adding a scope does not
+// invalidate existing sessions — their refresh tokens simply lack it until
+// the user logs in again — so src/spotify.js treats a 403 from the devices
+// endpoint as INSUFFICIENT_SCOPE and MapView tells them to re-login rather
+// than failing opaquely.
 const OAUTH_SCOPE =
-  "user-read-currently-playing user-modify-playback-state user-follow-read";
+  "user-read-currently-playing user-modify-playback-state user-follow-read user-read-playback-state";
 
 export const COOKIE_NAME = "rt";
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days, in seconds
