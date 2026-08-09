@@ -118,6 +118,7 @@ describe("useLibraryArtists", () => {
 
   it("retries the same artist after retryAfterMs when throttled, without advancing resolvedCount", async () => {
     vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0); // no jitter: assert the base delay
     fetchFollowedArtists.mockResolvedValue([
       { id: "a1", name: "Artist One", imageUrl: "img1" },
     ]);
@@ -159,6 +160,51 @@ describe("useLibraryArtists", () => {
       lng: 8,
       placeName: "Eventually",
     });
+  });
+
+  it("adds jitter to a throttled retry so concurrent workers do not wake together", async () => {
+    vi.useFakeTimers();
+    // 0.5 of the jitter window — a deterministic stand-in for the random
+    // spread, so the test asserts the delay rather than the randomness.
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    fetchFollowedArtists.mockResolvedValue([
+      { id: "a1", name: "Artist One", imageUrl: "img1" },
+    ]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ status: "throttled", retryAfterMs: 1000 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          status: "resolved",
+          lat: 1,
+          lng: 2,
+          placeName: "Somewhere",
+          resolvedAt: 1,
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderHook(() => useLibraryArtists("token-1"));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // At exactly retryAfterMs the retry must NOT have fired: waking every
+    // worker on the server's exact TTL is the stampede this guards against.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // 0.5 * 250ms of jitter later, it fires.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(125);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("advances resolvedCount for a not_found artist", async () => {

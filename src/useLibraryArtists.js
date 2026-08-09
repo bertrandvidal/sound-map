@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchFollowedArtists } from "./spotify.js";
 
+// The server answers a denied caller with the lock's exact remaining TTL
+// (server/kv.js getThrottleRetryMs). That is ideal for a single caller and
+// pathological for several: every worker denied during the same hold wakes at
+// the same instant to contend for a lock only one can win, and the losers are
+// denied again. A small random spread staggers the wake-ups.
+const RETRY_JITTER_MS = 250;
+
 // Cancellable delay: rejects immediately (or as soon as `signal` aborts)
 // instead of resolving, so a stale throttled-retry timer never fires a
 // request for a loop whose effect has already been cleaned up.
@@ -105,7 +112,10 @@ export function useLibraryArtists(token) {
 
         if (result.status === "throttled") {
           try {
-            await delay(result.retryAfterMs, controller.signal);
+            await delay(
+              result.retryAfterMs + Math.random() * RETRY_JITTER_MS,
+              controller.signal,
+            );
           } catch {
             return; // aborted while waiting to retry — loop is dead, stop
           }
