@@ -15,7 +15,7 @@ function jsonResponse(body) {
 // explicitly, and which honors AbortSignal like real fetch (rejects with an
 // AbortError and stops counting as in-flight the moment its signal aborts).
 // Tracks the high-water mark of concurrently in-flight calls so a test can
-// assert the "at most one in flight" invariant directly, not just infer it
+// assert the worker pool's concurrency bound directly, not just infer it
 // from call counts.
 function controllableFetch() {
   const calls = [];
@@ -118,6 +118,7 @@ describe("useLibraryArtists", () => {
 
   it("retries the same artist after retryAfterMs when throttled, without advancing resolvedCount", async () => {
     vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0); // no jitter: assert the base delay
     fetchFollowedArtists.mockResolvedValue([
       { id: "a1", name: "Artist One", imageUrl: "img1" },
     ]);
@@ -159,6 +160,51 @@ describe("useLibraryArtists", () => {
       lng: 8,
       placeName: "Eventually",
     });
+  });
+
+  it("adds jitter to a throttled retry so concurrent workers do not wake together", async () => {
+    vi.useFakeTimers();
+    // 0.5 of the jitter window — a deterministic stand-in for the random
+    // spread, so the test asserts the delay rather than the randomness.
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    fetchFollowedArtists.mockResolvedValue([
+      { id: "a1", name: "Artist One", imageUrl: "img1" },
+    ]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ status: "throttled", retryAfterMs: 1000 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          status: "resolved",
+          lat: 1,
+          lng: 2,
+          placeName: "Somewhere",
+          resolvedAt: 1,
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderHook(() => useLibraryArtists("token-1"));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // At exactly retryAfterMs the retry must NOT have fired: waking every
+    // worker on the server's exact TTL is the stampede this guards against.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // 0.5 * 250ms of jitter later, it fires.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(125);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("advances resolvedCount for a not_found artist", async () => {
@@ -292,7 +338,7 @@ describe("useLibraryArtists", () => {
     expect(result.current.resolvedCount).toBe(0);
   });
 
-  it("aborts the in-flight geocode request on a token change, never running two requests at once", async () => {
+  it("aborts every in-flight geocode request on a token change and starts no more for the stale loop", async () => {
     fetchFollowedArtists
       .mockResolvedValueOnce([
         { id: "a1", name: "Artist One", imageUrl: "img1" },
@@ -309,28 +355,29 @@ describe("useLibraryArtists", () => {
       { initialProps: { token: "token-1" } },
     );
 
-    // the stale (token-1) loop's request for a1 is in flight, unresolved
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    // the stale (token-1) loop has both its artists in flight, unresolved
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(calls[0].options.body).toBe(
       JSON.stringify({ artistId: "a1", artistName: "Artist One" }),
     );
-    expect(calls[0].options.signal.aborted).toBe(false);
+    expect(calls.some((c) => c.options.signal.aborted)).toBe(false);
 
     // simulate the routine TOKEN_EXPIRED refresh in MapView.jsx: the token
     // prop changes while a geocode call for the OLD token is still pending
     rerender({ token: "token-2" });
 
-    // cleanup must abort the stale request synchronously on rerender
-    expect(calls[0].options.signal.aborted).toBe(true);
+    // cleanup must abort EVERY stale request synchronously on rerender —
+    // with a worker pool there is more than one to unwind
+    expect(calls.every((c) => c.options.signal.aborted)).toBe(true);
 
     // the new (token-2) loop starts fresh: a new fetchFollowedArtists call,
-    // then exactly one new geocode request for its first artist
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(calls[1].options.body).toBe(
+    // then one geocode request for its single artist
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(calls[2].options.body).toBe(
       JSON.stringify({ artistId: "b1", artistName: "Artist B" }),
     );
 
-    calls[1].resolve(
+    calls[2].resolve(
       jsonResponse({
         status: "resolved",
         lat: 1,
@@ -358,11 +405,13 @@ describe("useLibraryArtists", () => {
       },
     ]);
 
-    // the invariant the fix guarantees: never more than one geocode request
-    // in flight at once, even across a token change mid-loop
-    expect(getMaxInFlight()).toBe(1);
-    // and no third call was ever made for the stale loop's second artist (a2)
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // The invariant is no longer "one at a time" — it is that a token change
+    // leaves NOTHING from the stale loop running, and that the pool never
+    // exceeds its bound.
+    expect(getMaxInFlight()).toBeLessThanOrEqual(4);
+    expect(calls.filter((c) => !c.settled).length).toBe(0);
+    // and the stale loop never issued a further request after the abort
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("cancels a pending throttled-retry timer on a token change instead of firing a stale retry", async () => {
@@ -425,40 +474,119 @@ describe("useLibraryArtists", () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
-    fetchFollowedArtists.mockResolvedValue([
-      { id: "a1", name: "Artist One", imageUrl: "img1" },
-      { id: "a2", name: "Artist Two", imageUrl: "img2" },
-    ]);
+    // More artists than the pool has workers, so once every worker is busy
+    // there are still queued artists nobody may pull after the unmount.
+    fetchFollowedArtists.mockResolvedValue(
+      Array.from({ length: 8 }, (_, i) => ({
+        id: `a${i}`,
+        name: `Artist ${i}`,
+        imageUrl: `img${i}`,
+      })),
+    );
 
-    let resolveFirst;
-    const firstResponse = new Promise((resolve) => {
-      resolveFirst = resolve;
-    });
-    const fetchMock = vi.fn().mockReturnValueOnce(firstResponse);
+    // Deliberately ignores the AbortSignal, so every in-flight request
+    // settles *successfully* after unmount — the case where a late response
+    // could still call setState on an unmounted hook.
+    const settle = [];
+    const fetchMock = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          settle.push(resolve);
+        }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const { unmount } = renderHook(() => useLibraryArtists("token-1"));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    // every worker is busy; the rest of the queue is untouched
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
 
     unmount();
 
     await act(async () => {
-      resolveFirst(
-        jsonResponse({
-          status: "resolved",
-          lat: 1,
-          lng: 1,
-          placeName: "Too late",
-          resolvedAt: 1,
-        }),
-      );
-      await Promise.resolve();
-      await Promise.resolve();
+      for (const resolveCall of settle) {
+        resolveCall(
+          jsonResponse({
+            status: "resolved",
+            lat: 1,
+            lng: 1,
+            placeName: "Too late",
+            resolvedAt: 1,
+          }),
+        );
+      }
+      await new Promise((r) => setTimeout(r, 0));
     });
 
-    // the loop must not continue to the second artist after unmount
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // no worker pulled another artist off the queue after unmount
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(consoleErrorSpy).not.toHaveBeenCalled();
+  });
+
+  it("resolves several artists concurrently, bounded by RESOLUTION_CONCURRENCY", async () => {
+    fetchFollowedArtists.mockResolvedValue(
+      Array.from({ length: 10 }, (_, i) => ({
+        id: `a${i}`,
+        name: `Artist ${i}`,
+        imageUrl: `img${i}`,
+      })),
+    );
+    const { fetchMock, calls, getMaxInFlight } = controllableFetch();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useLibraryArtists("token-1"));
+
+    // Several requests are in flight at once, and never more than the bound.
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+    expect(getMaxInFlight()).toBe(4);
+
+    // Draining the queue resolves every artist exactly once.
+    for (let i = 0; i < 10; i++) {
+      await waitFor(() => expect(calls[i]).toBeDefined());
+      calls[i].resolve(
+        jsonResponse({
+          status: "resolved",
+          lat: i,
+          lng: i,
+          placeName: `Place ${i}`,
+          resolvedAt: i,
+        }),
+      );
+    }
+
+    await waitFor(() => expect(result.current.resolvedCount).toBe(10));
+    expect(fetchMock).toHaveBeenCalledTimes(10);
+    // Never more than the bound, at any point in the run.
+    expect(getMaxInFlight()).toBe(4);
+    // Every artist resolved, none skipped and none done twice.
+    expect(result.current.artists.every((a) => a.status === "resolved")).toBe(
+      true,
+    );
+  });
+
+  it("hands each artist to exactly one worker", async () => {
+    fetchFollowedArtists.mockResolvedValue(
+      Array.from({ length: 8 }, (_, i) => ({
+        id: `a${i}`,
+        name: `Artist ${i}`,
+        imageUrl: `img${i}`,
+      })),
+    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ status: "not_found", resolvedAt: 1 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useLibraryArtists("token-1"));
+
+    await waitFor(() => expect(result.current.resolvedCount).toBe(8));
+
+    // The shared queue must not hand the same artist to two workers, nor
+    // drop one: exactly 8 requests, one per distinct artist id.
+    expect(fetchMock).toHaveBeenCalledTimes(8);
+    const requested = fetchMock.mock.calls.map(
+      ([, options]) => JSON.parse(options.body).artistId,
+    );
+    expect(new Set(requested).size).toBe(8);
   });
 });
