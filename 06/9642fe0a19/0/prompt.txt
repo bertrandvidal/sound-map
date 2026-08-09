@@ -1,0 +1,5 @@
+For artists that are not found they should appear in the "unknonw location" in the pacific as this is where they would appear in "currently playing". As usual plan, implement, PR, review etc. Note that the changes should handle the fact that the cache is currently populated for those artists. The code change should handle it and update so the artists show in the "unknonw location"
+
+---
+
+Let's go I'll review the plan in GitHub with the rest
