@@ -10,10 +10,34 @@ const RETRY_JITTER_MS = 250;
 
 // Workers pulling from one shared queue. Sized to keep the server-side
 // MusicBrainz lock busy without piling up requests that can only be denied:
-// a lookup holds that lock for 1-2 intervals, so a handful of workers
-// saturates it and anything beyond that just burns serverless invocations on
-// throttled responses. Measured cadence floor is ~1500ms/artist regardless.
-const RESOLUTION_CONCURRENCY = 4;
+// a lookup holds that lock for 1-2 intervals, so a couple of workers
+// saturate it and anything beyond that just burns serverless invocations on
+// throttled responses.
+//
+// 2 is measured, not guessed. A 242-artist cold run at 4 never once had 4
+// lookups in flight (peak 3, mean 1.37 while busy) and cost 3.4 throttle
+// denials per lookup against 0.8 for the old sequential loop — the extra
+// workers only bought denied requests. The floor is ~1500ms/artist: a
+// typical lookup's work takes ~500ms but holds the lock for at least
+// GEOCODE_MIN_INTERVAL_MS, so the quiet after it is the 1 req/s budget
+// being honored, not slack that more concurrency can fill.
+const DEFAULT_RESOLUTION_CONCURRENCY = 2;
+
+// Vite substitutes import.meta.env.VITE_* at BUILD time — this is a baked-in
+// constant, not a runtime lookup, so retuning it needs a redeploy rather than
+// just an env change. Anything unset or nonsensical falls back to the
+// measured default rather than failing the whole resolution loop.
+export function parseConcurrency(
+  raw,
+  fallback = DEFAULT_RESOLUTION_CONCURRENCY,
+) {
+  const n = Number.parseInt(raw, 10);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
+}
+
+const RESOLUTION_CONCURRENCY = parseConcurrency(
+  import.meta.env?.VITE_RESOLUTION_CONCURRENCY,
+);
 
 // Cancellable delay: rejects immediately (or as soon as `signal` aborts)
 // instead of resolving, so a stale throttled-retry timer never fires a

@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchFollowedArtists } from "../spotify.js";
-import { useLibraryArtists } from "../useLibraryArtists.js";
+import { parseConcurrency, useLibraryArtists } from "../useLibraryArtists.js";
 
 vi.mock("../spotify.js", () => ({
   fetchFollowedArtists: vi.fn(),
@@ -10,6 +10,11 @@ vi.mock("../spotify.js", () => ({
 function jsonResponse(body) {
   return { ok: true, status: 200, json: async () => body };
 }
+
+// Mirrors DEFAULT_RESOLUTION_CONCURRENCY in useLibraryArtists.js. The hook
+// bakes its value in at build time from VITE_RESOLUTION_CONCURRENCY, so the
+// tests below assert against the default the suite runs under.
+const CONCURRENCY = 2;
 
 // A fetch mock whose promises stay pending until `resolve()` is called
 // explicitly, and which honors AbortSignal like real fetch (rejects with an
@@ -43,6 +48,34 @@ function controllableFetch() {
   });
   return { fetchMock, calls, getMaxInFlight: () => maxInFlight };
 }
+
+// VITE_RESOLUTION_CONCURRENCY is substituted at build time, so the module's
+// own constant can't be re-read per test. The parsing is tested directly
+// instead — that's where every branch worth guarding actually lives.
+describe("parseConcurrency", () => {
+  it("uses the value when it is a positive integer", () => {
+    expect(parseConcurrency("3")).toBe(3);
+    expect(parseConcurrency("1")).toBe(1);
+    expect(parseConcurrency("12")).toBe(12);
+  });
+
+  it("falls back when unset or empty", () => {
+    expect(parseConcurrency(undefined)).toBe(2);
+    expect(parseConcurrency("")).toBe(2);
+  });
+
+  it("falls back rather than stalling the loop on a nonsensical value", () => {
+    // 0 would spawn no workers at all and silently resolve nothing; a
+    // negative is the same bug wearing a different sign.
+    expect(parseConcurrency("0")).toBe(2);
+    expect(parseConcurrency("-1")).toBe(2);
+    expect(parseConcurrency("abc")).toBe(2);
+  });
+
+  it("honors an explicit fallback", () => {
+    expect(parseConcurrency(undefined, 5)).toBe(5);
+  });
+});
 
 describe("useLibraryArtists", () => {
   beforeEach(() => {
@@ -408,7 +441,7 @@ describe("useLibraryArtists", () => {
     // The invariant is no longer "one at a time" — it is that a token change
     // leaves NOTHING from the stale loop running, and that the pool never
     // exceeds its bound.
-    expect(getMaxInFlight()).toBeLessThanOrEqual(4);
+    expect(getMaxInFlight()).toBeLessThanOrEqual(CONCURRENCY);
     expect(calls.filter((c) => !c.settled).length).toBe(0);
     // and the stale loop never issued a further request after the abort
     expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -499,7 +532,7 @@ describe("useLibraryArtists", () => {
     const { unmount } = renderHook(() => useLibraryArtists("token-1"));
 
     // every worker is busy; the rest of the queue is untouched
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(CONCURRENCY));
 
     unmount();
 
@@ -519,7 +552,7 @@ describe("useLibraryArtists", () => {
     });
 
     // no worker pulled another artist off the queue after unmount
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(CONCURRENCY);
     expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 
@@ -537,8 +570,8 @@ describe("useLibraryArtists", () => {
     const { result } = renderHook(() => useLibraryArtists("token-1"));
 
     // Several requests are in flight at once, and never more than the bound.
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
-    expect(getMaxInFlight()).toBe(4);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(CONCURRENCY));
+    expect(getMaxInFlight()).toBe(CONCURRENCY);
 
     // Draining the queue resolves every artist exactly once.
     for (let i = 0; i < 10; i++) {
@@ -557,7 +590,7 @@ describe("useLibraryArtists", () => {
     await waitFor(() => expect(result.current.resolvedCount).toBe(10));
     expect(fetchMock).toHaveBeenCalledTimes(10);
     // Never more than the bound, at any point in the run.
-    expect(getMaxInFlight()).toBe(4);
+    expect(getMaxInFlight()).toBe(CONCURRENCY);
     // Every artist resolved, none skipped and none done twice.
     expect(result.current.artists.every((a) => a.status === "resolved")).toBe(
       true,
