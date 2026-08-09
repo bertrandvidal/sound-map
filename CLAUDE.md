@@ -66,7 +66,9 @@ Area names are not unique, and Nominatim ranks a free-text search by "importance
 
 **`src/components/LeafletMap.jsx`** — wraps `react-leaflet`. `MapController` is an inner component that calls `map.flyTo()` imperatively (the only way to trigger Leaflet animations from React state changes). `AlbumBubble` uses a `L.divIcon` with a circular `<img>` as the marker.
 
-**`src/useLibraryArtists.js`** — the explore-mode resolution loop described above: `fetchFollowedArtists` (`GET /me/following?type=artist`, needs the `user-follow-read` scope) then a walk over `POST /api/geocode` driven by `RESOLUTION_CONCURRENCY` workers pulling from one shared queue, retrying `throttled` responses after the server-supplied `retryAfterMs` plus a random spread of up to `RETRY_JITTER_MS`. The jitter is not optional: the server answers every denied caller with the lock's *exact* remaining TTL, so without it concurrent workers wake in lockstep and stampede a lock only one can win. Concurrency is bounded because a lookup holds the MusicBrainz lock for 1–2 intervals — past a handful of workers the extra requests can only be denied. Measured cadence floor is ~1500 ms/artist, set by MusicBrainz's 1 req/s limit.
+**`src/useLibraryArtists.js`** — the explore-mode resolution loop described above: `fetchFollowedArtists` (`GET /me/following?type=artist`, needs the `user-follow-read` scope) then a walk over `POST /api/geocode` driven by `RESOLUTION_CONCURRENCY` workers pulling from one shared queue, retrying `throttled` responses after the server-supplied `retryAfterMs` plus a random spread of up to `RETRY_JITTER_MS`. The jitter is not optional: the server answers every denied caller with the lock's *exact* remaining TTL, so without it concurrent workers wake in lockstep and stampede a lock only one can win.
+
+Concurrency comes from `VITE_RESOLUTION_CONCURRENCY` (build-time, see below), defaulting to **2**. That default is measured, not guessed — a 242-artist cold run at 4 workers never had more than **3** lookups in flight (mean 1.37 while busy) and paid **3.4** throttle denials per lookup against 0.8 for the old sequential loop, so the extra workers bought only denied requests and billable invocations. Reconstruct that from `metrics:geocode:recent` with each sample's `[at - ms, at]` occupancy interval; it is a far less noisy signal than cadence, whose run-to-run spread on identical code was 2552–4829 ms/artist. The floor is ~1500 ms/artist: a typical lookup's work takes ~500 ms but holds the lock for at least `GEOCODE_MIN_INTERVAL_MS`, so the quiet after it is MusicBrainz's 1 req/s budget being honored, not slack more concurrency can fill.
 
 **`server/kv.js`** — Redis cache (`geo:<artistId>`, `not_found` results cached 30 days, `resolved` results cached 180 days — long enough to be effective, bounded so a bad fuzzy-match MusicBrainz result doesn't stick forever) and throttle lock (`throttle:<service>`, via `SET NX PX`) backing `api/geocode.js`.
 
@@ -92,16 +94,23 @@ Average duration is `totalMs / count`. The samples carry `at`, so the gap betwee
 
 ### Environment variables
 
-`.env` at repo root (gitignored) — copy from `.env.example`, which documents six
+`.env` at repo root (gitignored) — copy from `.env.example`, which documents seven
 variables:
 ```
-SPOTIFY_CLIENT_ID        # Spotify app id; read server-side by /api/login
-SPOTIFY_CLIENT_SECRET    # server-only; never in client code
-COOKIE_ENCRYPTION_KEY    # 32 bytes, base64 — openssl rand -base64 32
-REDIRECT_URI             # http://127.0.0.1:3000/api/callback (local)
-FRONTEND_URL             # http://127.0.0.1:3000 (local); callback redirects here
-GEOCODE_MIN_INTERVAL_MS  # min ms between MusicBrainz/Nominatim calls (default 1100)
+SPOTIFY_CLIENT_ID           # Spotify app id; read server-side by /api/login
+SPOTIFY_CLIENT_SECRET       # server-only; never in client code
+COOKIE_ENCRYPTION_KEY       # 32 bytes, base64 — openssl rand -base64 32
+REDIRECT_URI                # http://127.0.0.1:3000/api/callback (local)
+FRONTEND_URL                # http://127.0.0.1:3000 (local); callback redirects here
+GEOCODE_MIN_INTERVAL_MS     # min ms between MusicBrainz/Nominatim calls (default 1100)
+VITE_RESOLUTION_CONCURRENCY # browser-side resolution workers (default 2)
 ```
+
+`VITE_RESOLUTION_CONCURRENCY` is the odd one out: it is read by the **browser**,
+so it needs the `VITE_` prefix and Vite substitutes it **at build time**. It is
+baked into the bundle — changing it on Vercel needs a redeploy, unlike
+`GEOCODE_MIN_INTERVAL_MS`, which `api/geocode.js` reads per invocation. A
+`VITE_`-prefixed value is public by construction; never put a secret behind one.
 `vercel dev` also reads `VERCEL_OIDC_TOKEN` from `.env.local` (auto-managed),
 and `REDIS_KV_REST_API_URL`/`REDIS_KV_REST_API_TOKEN` (the Upstash cache/
 throttle backing explore mode, see `server/kv.js`) — both are injected by the
