@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "d4545e872ae8",
+  "strategy": "manual-commit",
+  "branch": "unknown-location-library-artists",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CLAUDE.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d4/545e872ae8/0/metadata.json",
+      "transcript": "/d4/545e872ae8/0/full.jsonl",
+      "compact_transcript": "/d4/545e872ae8/0/transcript.jsonl",
+      "content_hash": "/d4/545e872ae8/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 3535,
+    "cache_read_tokens": 278008,
+    "output_tokens": 1079,
+    "api_call_count": 3
+  }
+}
