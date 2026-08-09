@@ -1,0 +1,73 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "7ef3f50519f8",
+  "session_id": "43d30404-01ab-4323-8abd-5a86edb6de73",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-09T13:16:40.744013Z",
+  "branch": "geocode-worker-pool",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/__tests__/useLibraryArtists.test.js",
+    "src/useLibraryArtists.js",
+    "CLAUDE.md"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "16d87f50849f",
+  "checkpoint_transcript_start": 70,
+  "transcript_lines_at_start": 70,
+  "compact_transcript_start": 17,
+  "token_usage": {
+    "input_tokens": 41,
+    "cache_creation_tokens": 16437,
+    "cache_read_tokens": 1600218,
+    "output_tokens": 10463,
+    "api_call_count": 22
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01FxGULyuGgTgAfUVhyMrDhp",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:executing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "16d87f50849f",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 29,
+        "end": 30,
+        "entry_ids": [
+          "c8ec8e52-23d1-40f5-8260-72e11b0ced5b"
+        ],
+        "tool_use_id": "toolu_01FxGULyuGgTgAfUVhyMrDhp"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01FxGULyuGgTgAfUVhyMrDhp"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:executing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-08-09T13:16:40.727112Z",
+    "agent_lines": 148,
+    "agent_removed": 50,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 148,
+    "total_lines_changed": 198,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
