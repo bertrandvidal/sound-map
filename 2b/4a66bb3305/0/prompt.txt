@@ -1,0 +1,21 @@
+Open a PR I'll review everything in there
+
+---
+
+Once deployed I'm thinking about flushall-ing redis and reload my entire library (242 artists) and have you look at the metrics so we can see the new numbers. In the meantime, grab the current stats from upstash so you can compare.
+
+---
+
+WOrking on that now, will ping when done. Give me the MB link for the artist https://en.wikipedia.org/wiki/Q-Tip_(musician)
+
+---
+
+Deploy and load done
+
+---
+
+WHat do you expect remeasuring at 4 to bring?
+
+---
+
+Let's go with 2. Could we make the concurrency a config value via env var (local and vercel)? This way it can be tuned when needed.

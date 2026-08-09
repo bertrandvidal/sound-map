@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "2b4a66bb3305",
+  "strategy": "manual-commit",
+  "branch": "geocode-worker-pool",
+  "checkpoints_count": 6,
+  "files_touched": [
+    ".env.example",
+    "CLAUDE.md",
+    "src/__tests__/useLibraryArtists.test.js",
+    "src/useLibraryArtists.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/2b/4a66bb3305/0/metadata.json",
+      "transcript": "/2b/4a66bb3305/0/full.jsonl",
+      "compact_transcript": "/2b/4a66bb3305/0/transcript.jsonl",
+      "content_hash": "/2b/4a66bb3305/0/content_hash.txt",
+      "prompt": "/2b/4a66bb3305/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 95,
+    "cache_creation_tokens": 49711,
+    "cache_read_tokens": 5886912,
+    "output_tokens": 37712,
+    "api_call_count": 51
+  }
+}
