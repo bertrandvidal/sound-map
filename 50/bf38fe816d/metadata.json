@@ -3,7 +3,7 @@
   "checkpoint_id": "50bf38fe816d",
   "strategy": "manual-commit",
   "branch": "geocode-worker-pool",
-  "checkpoints_count": 4,
+  "checkpoints_count": 11,
   "files_touched": [
     "docs/superpowers/plans/2026-08-09-geocode-worker-pool.md",
     "src/__tests__/useLibraryArtists.test.js",
@@ -23,13 +23,20 @@
       "compact_transcript": "/50/bf38fe816d/1/transcript.jsonl",
       "content_hash": "/50/bf38fe816d/1/content_hash.txt",
       "prompt": "/50/bf38fe816d/1/prompt.txt"
+    },
+    {
+      "metadata": "/50/bf38fe816d/2/metadata.json",
+      "transcript": "/50/bf38fe816d/2/full.jsonl",
+      "compact_transcript": "/50/bf38fe816d/2/transcript.jsonl",
+      "content_hash": "/50/bf38fe816d/2/content_hash.txt",
+      "prompt": "/50/bf38fe816d/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 125,
-    "cache_creation_tokens": 130532,
-    "cache_read_tokens": 4594448,
-    "output_tokens": 20887,
-    "api_call_count": 63
+    "input_tokens": 606,
+    "cache_creation_tokens": 427902,
+    "cache_read_tokens": 11563097,
+    "output_tokens": 60744,
+    "api_call_count": 90
   }
 }

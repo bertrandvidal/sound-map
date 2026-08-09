@@ -1,0 +1,87 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "50bf38fe816d",
+  "session_id": "e8bdbbf9-027a-4110-9ddf-05e31fb43729",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-09T13:13:45.138897Z",
+  "branch": "geocode-worker-pool",
+  "checkpoints_count": 7,
+  "save_step_count": 1,
+  "files_touched": [
+    "docs/superpowers/plans/2026-08-09-geocode-worker-pool.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5",
+  "turn_id": "13799b91a72e",
+  "checkpoint_transcript_start": 756,
+  "transcript_lines_at_start": 756,
+  "compact_transcript_start": 191,
+  "token_usage": {
+    "input_tokens": 481,
+    "cache_creation_tokens": 297370,
+    "cache_read_tokens": 6968649,
+    "output_tokens": 39857,
+    "api_call_count": 27
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01VNNjhnV8MnziD5kj7o2tig",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:writing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "13799b91a72e",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 859,
+        "end": 860,
+        "entry_ids": [
+          "37ffe628-4717-4d3d-8731-8a298f2e39da"
+        ],
+        "tool_use_id": "toolu_01VNNjhnV8MnziD5kj7o2tig"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01VNNjhnV8MnziD5kj7o2tig"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:writing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 17
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-09T13:13:45.078031Z",
+    "agent_lines": 493,
+    "agent_removed": 0,
+    "human_added": 57,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 550,
+    "total_lines_changed": 551,
+    "agent_percentage": 89.47368421052632,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 44,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 44
+      }
+    }
+  ]
+}
