@@ -42,9 +42,10 @@ export async function fetchCurrentlyPlaying(token) {
   };
 }
 
-async function playerCommand(method, command, token, body) {
+async function playerCommand(method, command, token, body, deviceId) {
+  const query = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : "";
   const response = await fetch(
-    `https://api.spotify.com/v1/me/player/${command}`,
+    `https://api.spotify.com/v1/me/player/${command}${query}`,
     {
       method,
       headers: {
@@ -62,13 +63,62 @@ async function playerCommand(method, command, token, body) {
   if (err) throw err;
 }
 
-export const play = (token, { contextUri } = {}) =>
-  playerCommand(
-    "PUT",
-    "play",
-    token,
-    contextUri ? { context_uri: contextUri } : undefined,
-  );
+/**
+ * Spotify Connect devices the account can currently reach.
+ *
+ * Needs the `user-read-playback-state` scope (see OAUTH_SCOPE in
+ * server/auth.js). A session minted before that scope was added keeps working
+ * for everything else, so a 403 here means "stale consent", NOT "no Premium"
+ * — hence its own error rather than playerCommand's PLAYBACK_UNAVAILABLE.
+ */
+export async function fetchDevices(token) {
+  const response = await fetch("https://api.spotify.com/v1/me/player/devices", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const err = spotifyError(response, {
+    403: () => new Error("INSUFFICIENT_SCOPE"),
+  });
+  if (err) throw err;
+  const data = await response.json();
+  return data.devices ?? [];
+}
+
+// `is_restricted` devices accept no Web API commands at all, so targeting one
+// would swap a 404 for a silent no-op. An already-active device is preferred
+// when present; otherwise any open client will do — that's the whole point,
+// since Spotify only refuses the bare call because *none* is active.
+function pickPlaybackDevice(devices) {
+  const usable = devices.filter((d) => !d.is_restricted && d.id);
+  return usable.find((d) => d.is_active) ?? usable[0] ?? null;
+}
+
+/**
+ * Start playback, recovering from Spotify's "no active device" refusal.
+ *
+ * `PUT /me/player/play` 404s when nothing is currently playing — the common
+ * case on a fresh login, where the user has Spotify open somewhere but hasn't
+ * pressed play. Rather than surfacing that as an error, look for a reachable
+ * device and aim at it explicitly.
+ *
+ * Only `play` gets this treatment: pause/next against no device are genuinely
+ * meaningless, and waking a client to immediately pause it would be surprising.
+ */
+export async function play(token, { contextUri, deviceId } = {}) {
+  const body = contextUri ? { context_uri: contextUri } : undefined;
+  try {
+    return await playerCommand("PUT", "play", token, body, deviceId);
+  } catch (err) {
+    // An explicit deviceId that 404s is a dead device, not a missing one —
+    // re-resolving would just pick the same list and loop.
+    if (err.message !== "NO_ACTIVE_DEVICE" || deviceId) throw err;
+
+    const device = pickPlaybackDevice(await fetchDevices(token));
+    // Nothing open anywhere. No API call can fix this; the user has to open
+    // Spotify, so let NO_ACTIVE_DEVICE through with its original meaning.
+    if (!device) throw err;
+    return playerCommand("PUT", "play", token, body, device.id);
+  }
+}
 export const pause = (token) => playerCommand("PUT", "pause", token);
 export const skipToNext = (token) => playerCommand("POST", "next", token);
 
