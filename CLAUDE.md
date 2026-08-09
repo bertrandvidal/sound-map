@@ -60,7 +60,7 @@ explore mode — there's no auto-switch back to now-playing.
 
 **`src/spotify.js`** — Spotify Web API client: `fetchCurrentlyPlaying(token)` (polls `/me/player/currently-playing`) plus the `play`/`pause`/`skipToNext` player controls. Throws structured errors: `TOKEN_EXPIRED`, `RATE_LIMITED:<seconds>`, `SPOTIFY_ERROR:<status>`. `MapView` handles all three cases. Login starts at the server's `/api/login`, not here.
 
-**`shared/geocode.js`** — the single MusicBrainz → Nominatim implementation, imported by *both* the browser (`MapView`, for now-playing) and the server (`api/geocode.js`, for explore mode); there is no separate `src/geo.js`. `lookupArtistLocation(artistName)` queries MusicBrainz for the artist's `begin-area` or `area`, then resolves it to lat/lng via Nominatim. Returns `null` on any failure; `MapView` maps `null` to the Pacific Ocean fallback `{ lat: 0, lng: -160, unknown: true }` rather than leaving the marker at the previous artist's location — the `unknown` flag makes `LeafletMap` fly out to a wide zoom instead of framing empty ocean. Its optional second argument takes an `acquireNominatimThrottle` callback so the server can rate-limit that hop independently of the MusicBrainz one; the browser passes nothing.
+**`shared/geocode.js`** — the single MusicBrainz → Nominatim implementation, imported by *both* the browser (`MapView`, for now-playing) and the server (`api/geocode.js`, for explore mode); there is no separate `src/geo.js`. `lookupArtistLocation(artistName)` queries MusicBrainz for the artist's `begin-area` or `area`, then resolves it to lat/lng via Nominatim. Returns `null` on any failure; `MapView` maps `null` to the Pacific Ocean fallback `{ lat: 0, lng: -160, unknown: true }` rather than leaving the marker at the previous artist's location — the `unknown` flag makes `LeafletMap` fly out to a wide zoom instead of framing empty ocean. Its optional second argument takes an `acquireNominatimThrottle` callback so the server can rate-limit that hop independently of the MusicBrainz one, plus an `areaCache` (`{ get, set }`) it consults before spending the area-parent request; the browser passes neither and always goes to the network.
 
 Area names are not unique, and Nominatim ranks a free-text search by "importance" — a bare `Aberdeen` resolves to Scotland, so Nirvana landed in the North Sea. The Nominatim query is therefore narrowed with the structure MusicBrainz already has: `countrycodes` from the artist's ISO country, plus the area's **parent area** (`GET /area/<id>?inc=area-rels` → the `part of` relation with `direction: "backward"`), giving `q=Aberdeen, Grays Harbor County&countrycodes=us`. Country alone is not enough — it resolves to Aberdeen, *South Dakota*. That parent lookup is a second MusicBrainz request, so `MUSICBRAINZ_CALLS_PER_LOOKUP` exists for callers to reserve airtime for both hops in one throttle acquisition (`api/geocode.js` holds `throttle:musicbrainz` for 2 × the interval); taking a second lock mid-lookup would deadlock against the one the same request still holds. The parent hop degrades to `null` on any failure — the country filter alone still beats an unqualified search. `placeName` carries the region from Nominatim's `addressdetails` ("Aberdeen, Washington"), requested with `accept-language=en` so labels don't come back localized.
 
@@ -68,7 +68,27 @@ Area names are not unique, and Nominatim ranks a free-text search by "importance
 
 **`src/useLibraryArtists.js`** — the explore-mode resolution loop described above: `fetchFollowedArtists` (`GET /me/following?type=artist`, needs the `user-follow-read` scope) then a sequential, one-in-flight-at-a-time walk over `POST /api/geocode`, retrying `throttled` responses after the server-supplied `retryAfterMs`.
 
-**`server/kv.js`** — Redis cache (`geo:<artistId>`, `not_found` results cached 30 days, `resolved` results cached 180 days — long enough to be effective, bounded so a bad fuzzy-match MusicBrainz result doesn't stick forever) and throttle lock (`throttle:<service>`, via `SET NX PX`) backing `api/geocode.js`. Constructs the `Redis` client explicitly against `REDIS_KV_REST_API_URL`/`REDIS_KV_REST_API_TOKEN` — **not** `Redis.fromEnv()`, which doesn't recognize the `REDIS_`-prefixed names the Vercel Marketplace Upstash integration injects (see `.env.example`).
+**`server/kv.js`** — Redis cache (`geo:<artistId>`, `not_found` results cached 30 days, `resolved` results cached 180 days — long enough to be effective, bounded so a bad fuzzy-match MusicBrainz result doesn't stick forever) and throttle lock (`throttle:<service>`, via `SET NX PX`) backing `api/geocode.js`.
+
+Several throughput details live here:
+
+- **`geo:area:<mbid>`** caches an area's **parent area** separately from any artist: containment is a fact about geography, shared by every artist from that city, and artists cluster hard in a few cities — so the second MusicBrainz call is usually a Redis hit. A parent lookup that *failed* is deliberately not cached, or a transient MusicBrainz outage would pin itself in Redis for 180 days.
+- **`getThrottleRetryMs`** answers a denied caller with the lock's real remaining `PTTL` rather than a constant, because the client sleeps exactly that long before retrying (`useLibraryArtists.js`) — a constant overshoots and leaves the upstream idle.
+- **The throttle lock is fenced.** `acquireThrottle` stores a random token as the lock's value and returns it; `releaseThrottleAfter` shortens (or drops) the lock through a Lua compare-and-set that first checks the token still matches. That is what makes `api/geocode.js`'s *early release* safe: it reserves two intervals because it cannot know a lookup's shape in advance, then hands back the second one when only one MusicBrainz call was actually spent. Without the token, a holder whose lease had already lapsed would be shortening whatever lock is there *now* — someone else's.
+- **Never hand back the whole remainder.** The one call that did happen still owes a full interval from acquisition, so the remainder is `minIntervalMs - elapsed`. Releasing outright would let a 300ms lookup free the lock immediately and blow the 1 req/s budget.
+
+### Reading the geocode metrics
+
+`recordLookupMetrics` writes running totals and a capped sample of recent lookups. Both are best-effort — measurement can never fail a request. From the Upstash console:
+
+```
+HGETALL metrics:geocode          # count, totalMs, totalUpstreamMs, musicBrainzCalls,
+                                 # areaCacheHits/Misses, resolved, notFound, cacheHits,
+                                 # throttledMusicBrainz, throttledNominatim
+LRANGE  metrics:geocode:recent 0 -1   # last 500 lookups
+```
+
+Average duration is `totalMs / count`. The samples carry `at`, so the gap between consecutive entries gives the **cadence** — the number the throttle work actually targets, which a per-request duration alone won't tell you. Artist-cache hits and throttle denials only bump counters; sampling them would push real lookups out of the capped list. Constructs the `Redis` client explicitly against `REDIS_KV_REST_API_URL`/`REDIS_KV_REST_API_TOKEN` — **not** `Redis.fromEnv()`, which doesn't recognize the `REDIS_`-prefixed names the Vercel Marketplace Upstash integration injects (see `.env.example`).
 
 ### Environment variables
 

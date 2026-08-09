@@ -89,9 +89,26 @@ async function fetchParentAreaName(areaId) {
 // mid-lookup would deadlock against the lock the first call still holds.
 export const MUSICBRAINZ_CALLS_PER_LOOKUP = 2;
 
+/**
+ * The area's containing area, preferring a caller-supplied cache over the
+ * network. `areaCache` is optional and server-only (`api/geocode.js` backs it
+ * with Redis); the browser passes nothing and always goes to MusicBrainz.
+ */
+async function resolveParentAreaName(areaId, areaCache) {
+  const cached = await areaCache?.get(areaId);
+  if (cached) return cached;
+
+  const parentName = await fetchParentAreaName(areaId);
+  // Only cache a definitive answer. A failed hop returns null too, and
+  // storing that would pin a transient MusicBrainz outage into the cache for
+  // months — every artist from that city silently losing its disambiguation.
+  if (parentName !== null) await areaCache?.set(areaId, parentName);
+  return parentName;
+}
+
 export async function lookupArtistLocation(
   artistName,
-  { acquireNominatimThrottle } = {},
+  { acquireNominatimThrottle, areaCache } = {},
 ) {
   try {
     const mbResult = await fetchJson(
@@ -115,7 +132,7 @@ export async function lookupArtistLocation(
     // continent), so the extra hop is only worth paying for cities/regions.
     const parentName =
       area.id && area.type !== "Country"
-        ? await fetchParentAreaName(area.id)
+        ? await resolveParentAreaName(area.id, areaCache)
         : null;
 
     if (acquireNominatimThrottle) {

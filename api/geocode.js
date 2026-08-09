@@ -1,9 +1,14 @@
 import { COOKIE_NAME, openSession, parseCookies } from "../server/auth.js";
 import {
+  acquireThrottle,
   createRedisClient,
+  getCachedAreaParent,
   getCachedArtist,
+  getThrottleRetryMs,
+  recordLookupMetrics,
+  releaseThrottleAfter,
+  setCachedAreaParent,
   setCachedArtist,
-  tryAcquireThrottle,
 } from "../server/kv.js";
 import {
   lookupArtistLocation,
@@ -48,9 +53,13 @@ export async function geocodeHandler(req, res, deps = {}) {
   // "resolved successfully, and it's empty." Catching here and returning a
   // declared status keeps the failure in-vocabulary and lets the client
   // tell it apart from a legitimate negative result.
+  const startedAt = Date.now();
   try {
     const cached = await getCachedArtist(redis, artistId);
-    if (cached) return res.status(200).json(cached);
+    if (cached) {
+      await recordLookupMetrics(redis, { counters: { cacheHits: 1 } });
+      return res.status(200).json(cached);
+    }
 
     // Held for MUSICBRAINZ_CALLS_PER_LOOKUP intervals, not one: a lookup can
     // spend two MusicBrainz requests (artist search, then the area-parent
@@ -58,31 +67,112 @@ export async function geocodeHandler(req, res, deps = {}) {
     // lookup(). Reserving the airtime up front keeps the *average* rate inside
     // MusicBrainz's 1 req/s budget; trying to take a second slot mid-lookup
     // instead would just fail against the lock this one still holds, and the
-    // client's retry would fail the same way forever.
+    // client's retry would fail the same way forever. The tail of the
+    // reservation is handed back below when the lookup turns out cheaper.
     const musicBrainzHoldMs = minIntervalMs * MUSICBRAINZ_CALLS_PER_LOOKUP;
-    if (!(await tryAcquireThrottle(redis, "musicbrainz", musicBrainzHoldMs))) {
-      // Retry after the full hold, not one interval: coming back sooner just
-      // spends a round-trip on a lock that is still held.
-      return res
-        .status(200)
-        .json({ status: "throttled", retryAfterMs: musicBrainzHoldMs });
+    const lockToken = await acquireThrottle(
+      redis,
+      "musicbrainz",
+      musicBrainzHoldMs,
+    );
+    const lockedAt = Date.now();
+    if (!lockToken) {
+      await recordLookupMetrics(redis, {
+        counters: { throttledMusicBrainz: 1 },
+      });
+      // Retry when the lock actually frees, not after a fixed interval. A
+      // constant here is wrong in both directions: too small burns a
+      // round-trip on a lock that is still held, too large leaves it idle.
+      return res.status(200).json({
+        status: "throttled",
+        retryAfterMs: await getThrottleRetryMs(
+          redis,
+          "musicbrainz",
+          musicBrainzHoldMs,
+        ),
+      });
     }
+
+    // Whether the second MusicBrainz call actually happened is derivable
+    // right here, without lookup() having to report it: it is spent exactly
+    // when the area cache is consulted and misses. Wrapping the cache we
+    // already pass in keeps shared/geocode.js free of both Redis and metrics.
+    let areaCacheMissed = false;
+    let areaCacheHit = false;
+    const areaCache = {
+      get: async (areaId) => {
+        const parentName = await getCachedAreaParent(redis, areaId);
+        if (parentName) areaCacheHit = true;
+        else areaCacheMissed = true;
+        return parentName;
+      },
+      set: (areaId, parentName) =>
+        setCachedAreaParent(redis, areaId, parentName),
+    };
 
     // lookup() does both the MusicBrainz and (if needed) Nominatim calls
     // internally; a Nominatim-side throttle is acquired inside it.
+    const upstreamStartedAt = Date.now();
     const location = await lookup(artistName, {
-      acquireNominatimThrottle: () =>
-        tryAcquireThrottle(redis, "nominatim", minIntervalMs),
+      acquireNominatimThrottle: async () =>
+        Boolean(await acquireThrottle(redis, "nominatim", minIntervalMs)),
+      areaCache,
     });
+    const upstreamMs = Date.now() - upstreamStartedAt;
+
+    // Only one MusicBrainz call was actually spent unless the area cache
+    // missed, so give back the second interval — but only the part that is
+    // genuinely unowed: the one call we did make still owes a full interval
+    // from when the lock was taken.
+    const musicBrainzCalls = areaCacheMissed ? 2 : 1;
+    if (musicBrainzCalls === 1) {
+      await releaseThrottleAfter(
+        redis,
+        "musicbrainz",
+        lockToken,
+        minIntervalMs - (Date.now() - lockedAt),
+      );
+    }
+
+    const metricsFor = (outcome) => ({
+      counters: {
+        count: 1,
+        totalMs: Date.now() - startedAt,
+        totalUpstreamMs: upstreamMs,
+        musicBrainzCalls,
+        areaCacheHits: areaCacheHit ? 1 : 0,
+        areaCacheMisses: areaCacheMissed ? 1 : 0,
+        [outcome]: 1,
+      },
+      sample: {
+        at: Date.now(),
+        artist: artistName,
+        ms: Date.now() - startedAt,
+        upstreamMs,
+        musicBrainzCalls,
+        outcome,
+      },
+    });
+
     if (location === "THROTTLED") {
-      return res
-        .status(200)
-        .json({ status: "throttled", retryAfterMs: minIntervalMs });
+      await recordLookupMetrics(redis, { counters: { throttledNominatim: 1 } });
+      return res.status(200).json({
+        status: "throttled",
+        retryAfterMs: await getThrottleRetryMs(
+          redis,
+          "nominatim",
+          minIntervalMs,
+        ),
+      });
     }
 
     const value = location
       ? { status: "resolved", ...location, resolvedAt: Date.now() }
       : { status: "not_found", resolvedAt: Date.now() };
+    await recordLookupMetrics(
+      redis,
+      metricsFor(location ? "resolved" : "notFound"),
+    );
     await setCachedArtist(redis, artistId, value);
     return res.status(200).json(value);
   } catch (err) {

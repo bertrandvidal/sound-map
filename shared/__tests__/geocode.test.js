@@ -413,6 +413,110 @@ describe("shared/geocode - disambiguating an ambiguous city name", () => {
     });
   });
 
+  it("skips the parent-area request entirely on an areaCache hit", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(okJson({ artists: [NIRVANA] }))
+      .mockResolvedValueOnce(okJson([ABERDEEN_WA_HIT]));
+    vi.stubGlobal("fetch", fetchMock);
+    const areaCache = {
+      get: vi.fn().mockResolvedValue("Grays Harbor County"),
+      set: vi.fn(),
+    };
+
+    expect(await lookupArtistLocation("Nirvana", { areaCache })).toEqual({
+      lat: 46.975371,
+      lng: -123.815722,
+      placeName: "Aberdeen, Washington",
+    });
+
+    expect(areaCache.get).toHaveBeenCalledWith("aberdeen-area-id");
+    // Artist search + Nominatim only — the area-relations hop was served
+    // from cache, which is the entire point.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // Nothing new to write on a hit.
+    expect(areaCache.set).not.toHaveBeenCalled();
+    // ...and the cached parent still qualifies the Nominatim query.
+    expect(fetchMock.mock.calls[1][0]).toContain(
+      `q=${encodeURIComponent("Aberdeen, Grays Harbor County")}`,
+    );
+  });
+
+  it("populates the areaCache after a miss", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(okJson({ artists: [NIRVANA] }))
+      .mockResolvedValueOnce(okJson(ABERDEEN_AREA_RELS))
+      .mockResolvedValueOnce(okJson([ABERDEEN_WA_HIT]));
+    vi.stubGlobal("fetch", fetchMock);
+    const areaCache = { get: vi.fn().mockResolvedValue(null), set: vi.fn() };
+
+    await lookupArtistLocation("Nirvana", { areaCache });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(areaCache.set).toHaveBeenCalledWith(
+      "aberdeen-area-id",
+      "Grays Harbor County",
+    );
+  });
+
+  it("does not cache a parent lookup that failed", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(okJson({ artists: [NIRVANA] }))
+      .mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockResolvedValueOnce(okJson([ABERDEEN_WA_HIT]));
+    vi.stubGlobal("fetch", fetchMock);
+    const areaCache = { get: vi.fn().mockResolvedValue(null), set: vi.fn() };
+
+    await lookupArtistLocation("Nirvana", { areaCache });
+
+    // Caching the null would pin a transient MusicBrainz outage into Redis
+    // for 180 days, silently un-disambiguating every artist from that city.
+    expect(areaCache.set).not.toHaveBeenCalled();
+  });
+
+  it("works without an areaCache (the browser passes none)", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(okJson({ artists: [NIRVANA] }))
+      .mockResolvedValueOnce(okJson(ABERDEEN_AREA_RELS))
+      .mockResolvedValueOnce(okJson([ABERDEEN_WA_HIT]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await lookupArtistLocation("Nirvana")).toEqual({
+      lat: 46.975371,
+      lng: -123.815722,
+      placeName: "Aberdeen, Washington",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not consult the areaCache for a country-level area", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okJson({
+          artists: [
+            {
+              name: "Test",
+              country: "FR",
+              area: { id: "fr-area-id", type: "Country", name: "France" },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        okJson([{ lat: "46.6", lon: "2.3", address: { country: "France" } }]),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const areaCache = { get: vi.fn(), set: vi.fn() };
+
+    await lookupArtistLocation("Test", { areaCache });
+
+    expect(areaCache.get).not.toHaveBeenCalled();
+  });
+
   it("does not spend the Nominatim throttle slot until after the parent-area hop", async () => {
     const fetchMock = vi
       .fn()
