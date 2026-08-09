@@ -8,6 +8,13 @@ import { fetchFollowedArtists } from "./spotify.js";
 // denied again. A small random spread staggers the wake-ups.
 const RETRY_JITTER_MS = 250;
 
+// Workers pulling from one shared queue. Sized to keep the server-side
+// MusicBrainz lock busy without piling up requests that can only be denied:
+// a lookup holds that lock for 1-2 intervals, so a handful of workers
+// saturates it and anything beyond that just burns serverless invocations on
+// throttled responses. Measured cadence floor is ~1500ms/artist regardless.
+const RESOLUTION_CONCURRENCY = 4;
+
 // Cancellable delay: rejects immediately (or as soon as `signal` aborts)
 // instead of resolving, so a stale throttled-retry timer never fires a
 // request for a loop whose effect has already been cleaned up.
@@ -29,9 +36,10 @@ function delay(ms, signal) {
   });
 }
 
-// Sequential resolution loop, one in-flight /api/geocode call at a time. Runs
-// at app boot (keyed on token) regardless of whether explore mode is visible,
-// so the map has clustered markers ready by the time the user opens it.
+// Resolution loop: RESOLUTION_CONCURRENCY workers pulling artists off one
+// shared queue. Runs at app boot (keyed on token) regardless of whether
+// explore mode is visible, so the map has clustered markers ready by the
+// time the user opens it.
 export function useLibraryArtists(token) {
   const [artists, setArtists] = useState([]);
   const [resolvedCount, setResolvedCount] = useState(0);
@@ -54,12 +62,11 @@ export function useLibraryArtists(token) {
     if (!token) return;
 
     let cancelled = false;
-    // One controller per effect run (i.e. per token). Its cleanup aborts
-    // whatever /api/geocode request is in flight and cancels any pending
-    // throttled-retry timer, so a token change (e.g. the routine
+    // One controller per effect run (i.e. per token), shared by every worker.
+    // Its cleanup aborts every /api/geocode request in flight and cancels any
+    // pending throttled-retry timer, so a token change (e.g. the routine
     // TOKEN_EXPIRED refresh in MapView.jsx) can never leave a stale request
-    // racing the new loop's first request — at most one request is ever
-    // in flight across a token change.
+    // racing the new loop's — nothing from the old token survives it.
     const controller = new AbortController();
     const isLive = () => !cancelled && mountedRef.current;
 
@@ -170,10 +177,19 @@ export function useLibraryArtists(token) {
       setResolvedCount(0);
       setFailedCount(0);
 
-      for (const artist of initial) {
-        if (!isLive()) return;
-        await resolveArtist(artist);
-      }
+      // One shared queue, N workers. `shift()` needs no lock: JavaScript is
+      // single-threaded and there is no await between the shift and the
+      // check, so two workers can never take the same artist.
+      const queue = [...initial];
+      await Promise.all(
+        Array.from({ length: RESOLUTION_CONCURRENCY }, async () => {
+          while (isLive()) {
+            const artist = queue.shift();
+            if (!artist) return;
+            await resolveArtist(artist);
+          }
+        }),
+      );
     }
 
     run();
