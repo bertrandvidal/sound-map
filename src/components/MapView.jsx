@@ -4,6 +4,7 @@ import { devLog } from "../devLog.js";
 import { classifyPollError } from "../pollError.js";
 import { fetchCurrentlyPlaying, pause, play, skipToNext } from "../spotify.js";
 import { MUTED, overlayCardStyle } from "../theme.js";
+import { UNKNOWN_LOCATION } from "../unknownLocation.js";
 import { useLibraryArtists } from "../useLibraryArtists.js";
 import BrowseLibraryButton from "./BrowseLibraryButton.jsx";
 import LeafletMap from "./LeafletMap.jsx";
@@ -11,14 +12,6 @@ import LibraryLoadingBadge from "./LibraryLoadingBadge.jsx";
 import NowPlayingCard from "./NowPlayingCard.jsx";
 
 const POLL_MS = 5_000;
-// `unknown` marks this as the we-have-no-idea placeholder rather than a real
-// resolved origin; LeafletMap keys its fly-to zoom off it (see UNKNOWN_ZOOM).
-const PACIFIC_FALLBACK = {
-  lat: 0,
-  lng: -160,
-  placeName: "Unknown location",
-  unknown: true,
-};
 const SCOPE_WARNING = "Log out and back in to enable Browse Library";
 
 // A playback failure the user can act on beats an accurate one they can't.
@@ -142,7 +135,7 @@ export default function MapView({ token, onTokenExpired }) {
       lastArtistRef.current = current.artistName;
       devLog(`[poll] artist changed, looking up ${current.artistName}`);
       const loc = await lookupArtistLocation(current.artistName);
-      if (mountedRef.current) setLocation(loc ?? PACIFIC_FALLBACK);
+      if (mountedRef.current) setLocation(loc ?? UNKNOWN_LOCATION);
     }
   }, [token]);
 

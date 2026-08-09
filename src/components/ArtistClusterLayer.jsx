@@ -1,6 +1,7 @@
 import L from "leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import { ACCENT, SURFACE } from "../theme.js";
+import { UNKNOWN_LOCATION } from "../unknownLocation.js";
 import ArtistMarker from "./ArtistMarker.jsx";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.Default.css";
@@ -18,11 +19,33 @@ function createClusterIcon(cluster) {
   return L.divIcon({ html: div, className: "", iconSize: [40, 40] });
 }
 
+// Which artists get a marker, and where. Exported and pure so the rule is
+// testable without rendering react-leaflet — same pattern as
+// LeafletMap.zoomForLocation.
+//
+// A not_found artist gets the same Pacific placeholder the now-playing bubble
+// uses. Dropping them, as this layer used to, made an artist the user
+// actually follows indistinguishable from one that was never fetched.
+//
+// pending and unavailable stay off the map deliberately: "unavailable" is an
+// /api/geocode failure (Upstash outage, network hop, non-200), which means
+// "no answer yet", not "no known origin". Placing it would let an outage
+// render as a confident, complete answer — the same mistake
+// useLibraryArtists' failedCount exists to prevent.
+export function mappableArtists(artists) {
+  return (artists ?? []).flatMap((artist) => {
+    if (artist.status === "resolved") return [artist];
+    if (artist.status === "not_found")
+      return [{ ...artist, ...UNKNOWN_LOCATION }];
+    return [];
+  });
+}
+
 export default function ArtistClusterLayer({ artists, onSelectArtist }) {
-  const resolved = (artists ?? []).filter((a) => a.status === "resolved");
+  const mappable = mappableArtists(artists);
   return (
     <MarkerClusterGroup iconCreateFunction={createClusterIcon}>
-      {resolved.map((artist) => (
+      {mappable.map((artist) => (
         <ArtistMarker
           key={artist.id}
           artist={artist}

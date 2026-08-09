@@ -58,6 +58,22 @@ pill until resolution catches up. Clicking a clustered artist marker starts
 that artist's playback via `play(token, { contextUri })` and stays in
 explore mode — there's no auto-switch back to now-playing.
 
+`ArtistClusterLayer` maps both `resolved` **and** `not_found` artists: one
+MusicBrainz/Nominatim couldn't place gets the shared `UNKNOWN_LOCATION`
+placeholder (`src/unknownLocation.js`) that now-playing uses for the same
+case, so the two views agree instead of explore mode silently dropping the
+artist. That reinterpretation is deliberately client-side — `/api/geocode`
+returns cached `not_found` entries verbatim, so the already-cached negatives
+render with no invalidation and no re-spending of the upstream rate budget;
+doing it server-side would have meant rewriting or versioning those cache
+entries, and would have put a UI placeholder into the same value the
+`resolved`/`notFound` metrics count. `pending` and `unavailable` stay off the
+map: an `/api/geocode` failure is "no answer yet", not "no known origin", and
+mapping it would let an outage render as a confident, complete answer — the
+mistake `failedCount` exists to prevent. Every unknown shares one coordinate,
+so leaflet.markercluster groups them into a single bubble that spiderfies at
+max zoom.
+
 **`src/spotify.js`** — Spotify Web API client: `fetchCurrentlyPlaying(token)` (polls `/me/player/currently-playing`) plus the `play`/`pause`/`skipToNext` player controls and `fetchDevices(token)`. Throws structured errors: `TOKEN_EXPIRED`, `RATE_LIMITED:<seconds>`, `SPOTIFY_ERROR:<status>`, and for player calls `PLAYBACK_UNAVAILABLE` (403) / `NO_ACTIVE_DEVICE` (404) / `INSUFFICIENT_SCOPE`. Login starts at the server's `/api/login`, not here.
 
 `PUT /me/player/play` **404s when nothing is currently playing** — the common case on a fresh login, where Spotify is open somewhere but idle. `play()` therefore recovers: on `NO_ACTIVE_DEVICE` it calls `fetchDevices` and retries against a reachable device with `?device_id=`. Only `play` does this — pause/next against no device are meaningless, and waking a client just to pause it would be surprising. Devices with `is_restricted` are skipped (they accept no Web API commands, so targeting one turns a visible 404 into a silent no-op); an already-active device wins when present. If *nothing* is open anywhere, `NO_ACTIVE_DEVICE` is rethrown with its original meaning — no API call can fix that, only the user opening Spotify.
