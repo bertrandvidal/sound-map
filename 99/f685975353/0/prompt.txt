@@ -1,0 +1,11 @@
+<task-notification>
+<task-id>b5v7160td</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-bert-github-sound-map/63cf720e-05fc-481a-b9d9-1248c058c8ba/tasks/b5v7160td.output</output-file>
+<status>failed</status>
+<summary>Monitor "wait for PR #39 CI check to finish" script failed (exit 1)</summary>
+</task-notification>
+
+---
+
+ensure that @CLAUDE.md and @README.md are up to date and match the code
