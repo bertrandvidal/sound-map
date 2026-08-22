@@ -1,0 +1,9 @@
+1. The links/section on the bottom right of the map that has the link to leaflet and OSM are cut off. Those should be fully visible for contributions to be recognized. 2. When a new song is playing it takes a little bit of time for the UI to updated (both the map.flyTo and the top right 'now playing' UI), what do you suggest to improve that? Each should have its own branch, if you can use a sub agent for #1
+
+---
+
+The attributes are not overlayed by the logout button, the button is higher on the page. Attributions are "below" the bottom of the page/viewport. Hint: there is a scrollbar on the page which when used will reveal attributions fully. Update agent with that info. Log out button should remain bottom right and above attibutions
+
+---
+
+For 2 let's lower the poll to 3s, update the UI to show what we'll be playing in the case we know what's next. Additionally would it be helpful if part of the UI (e.g. location name) had spinners to show that something is loading?

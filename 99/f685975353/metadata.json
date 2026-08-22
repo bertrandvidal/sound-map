@@ -3,7 +3,7 @@
   "checkpoint_id": "99f685975353",
   "strategy": "manual-commit",
   "branch": "docs-sync-claude-readme",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     "CLAUDE.md",
     "README.md"
@@ -15,13 +15,20 @@
       "compact_transcript": "/99/f685975353/0/transcript.jsonl",
       "content_hash": "/99/f685975353/0/content_hash.txt",
       "prompt": "/99/f685975353/0/prompt.txt"
+    },
+    {
+      "metadata": "/99/f685975353/1/metadata.json",
+      "transcript": "/99/f685975353/1/full.jsonl",
+      "compact_transcript": "/99/f685975353/1/transcript.jsonl",
+      "content_hash": "/99/f685975353/1/content_hash.txt",
+      "prompt": "/99/f685975353/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 40,
-    "cache_creation_tokens": 32715,
-    "cache_read_tokens": 3923273,
-    "output_tokens": 13949,
-    "api_call_count": 20
+    "input_tokens": 154,
+    "cache_creation_tokens": 154288,
+    "cache_read_tokens": 9948597,
+    "output_tokens": 52447,
+    "api_call_count": 77
   }
 }
