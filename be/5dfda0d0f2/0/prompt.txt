@@ -1,0 +1,1 @@
+Remove the #Goal section from @CLAUDE.md since we ended up not doing any of that
