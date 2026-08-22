@@ -23,9 +23,18 @@ function mockPipeline() {
   const calls = [];
   const chain = {
     calls,
-    hincrby: (...args) => (calls.push(["hincrby", ...args]), chain),
-    lpush: (...args) => (calls.push(["lpush", ...args]), chain),
-    ltrim: (...args) => (calls.push(["ltrim", ...args]), chain),
+    hincrby: (...args) => {
+      calls.push(["hincrby", ...args]);
+      return chain;
+    },
+    lpush: (...args) => {
+      calls.push(["lpush", ...args]);
+      return chain;
+    },
+    ltrim: (...args) => {
+      calls.push(["ltrim", ...args]);
+      return chain;
+    },
     exec: vi.fn().mockResolvedValue([]),
   };
   return chain;
