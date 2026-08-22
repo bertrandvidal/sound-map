@@ -236,6 +236,18 @@ describe("recordLookupMetrics", () => {
     ]);
   });
 
+  it("handles a call with no counters at all (sample-only)", async () => {
+    const pipeline = mockPipeline();
+    const sample = { at: 1000, artist: "Nirvana" };
+
+    await recordLookupMetrics({ pipeline: () => pipeline }, { sample });
+
+    expect(pipeline.calls).toEqual([
+      ["lpush", "metrics:geocode:recent", JSON.stringify(sample)],
+      ["ltrim", "metrics:geocode:recent", 0, 499],
+    ]);
+  });
+
   it("never lets a metrics failure escape into the request", async () => {
     const redis = {
       pipeline: () => {

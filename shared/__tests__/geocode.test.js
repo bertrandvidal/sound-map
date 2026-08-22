@@ -146,6 +146,18 @@ describe("shared/geocode - lookupArtistLocation", () => {
     expect(await lookupArtistLocation("Test Artist")).toBeNull();
   });
 
+  it("returns null when the artist search itself throws (e.g. a network failure)", async () => {
+    // Distinct from an HTTP error response: here fetch() rejects outright,
+    // exercising lookupArtistLocation's own top-level catch rather than the
+    // inner fetchJson()'s `!response.ok` branch.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new TypeError("network down")),
+    );
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(await lookupArtistLocation("Test Artist")).toBeNull();
+  });
+
   it("returns null when Nominatim returns an HTTP error", async () => {
     const fetchMock = vi
       .fn()

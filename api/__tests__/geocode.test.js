@@ -1,6 +1,44 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sealSession } from "../../server/auth.js";
-import { geocodeHandler } from "../geocode.js";
+
+// Backs the `deps.redis ?? createRedisClient()` / `deps.lookupArtistLocation
+// ?? lookupArtistLocation` fallbacks (see the "default deps" describe block
+// below) without ever touching real Redis or the network.
+const fakeRedisPipeline = {
+  hincrby: vi.fn(function () {
+    return this;
+  }),
+  lpush: vi.fn(function () {
+    return this;
+  }),
+  ltrim: vi.fn(function () {
+    return this;
+  }),
+  exec: vi.fn().mockResolvedValue([]),
+};
+const fakeRedisInstance = {
+  get: vi.fn().mockResolvedValue(null),
+  set: vi.fn().mockResolvedValue("OK"),
+  pttl: vi.fn().mockResolvedValue(0),
+  eval: vi.fn().mockResolvedValue(1),
+  pipeline: vi.fn(() => fakeRedisPipeline),
+};
+const createRedisClientMock = vi.fn(() => fakeRedisInstance);
+vi.mock("../../server/kv.js", async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, createRedisClient: () => createRedisClientMock() };
+});
+
+const defaultLookupMock = vi.fn().mockResolvedValue(null);
+vi.mock("../../shared/geocode.js", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    lookupArtistLocation: (...args) => defaultLookupMock(...args),
+  };
+});
+
+const { geocodeHandler } = await import("../geocode.js");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -662,6 +700,42 @@ describe("POST /api/geocode — Redis outage handling", () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body).toEqual({ status: "unavailable" });
+  });
+});
+
+describe("POST /api/geocode — default deps", () => {
+  beforeEach(() => {
+    createRedisClientMock.mockClear();
+    defaultLookupMock.mockClear();
+    fakeRedisInstance.get.mockClear().mockResolvedValue(null);
+    fakeRedisInstance.set.mockClear().mockResolvedValue("OK");
+  });
+
+  it("falls back to createRedisClient() and the real lookupArtistLocation when deps are omitted", async () => {
+    defaultLookupMock.mockResolvedValueOnce({
+      lat: 1,
+      lng: 2,
+      placeName: "Somewhere",
+    });
+    const res = mockRes();
+
+    await geocodeHandler(
+      mockReq({ body: { artistId: "artist-1", artistName: "Test" } }),
+      res,
+      {}, // no redis, no lookupArtistLocation override
+    );
+
+    expect(createRedisClientMock).toHaveBeenCalledTimes(1);
+    expect(defaultLookupMock).toHaveBeenCalledWith(
+      "Test",
+      expect.objectContaining({
+        acquireNominatimThrottle: expect.any(Function),
+      }),
+    );
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual(
+      expect.objectContaining({ status: "resolved", placeName: "Somewhere" }),
+    );
   });
 });
 

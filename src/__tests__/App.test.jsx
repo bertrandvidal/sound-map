@@ -64,6 +64,29 @@ describe("App", () => {
     expect(replaceSpy).toHaveBeenCalledWith({}, "", "/");
   });
 
+  it("ignores a bootstrap that resolves after the component has unmounted", async () => {
+    let resolveBootstrap;
+    refreshAccessToken.mockReturnValue(
+      new Promise((resolve) => {
+        resolveBootstrap = resolve;
+      }),
+    );
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const { unmount } = render(<App />);
+    unmount();
+
+    // Resolving after unmount must not trigger a React state update on an
+    // unmounted component — that's exactly what the `cancelled` guard in
+    // App.jsx's bootstrap effect exists to prevent.
+    resolveBootstrap("late-token");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+  });
+
   it("logs out: clears the session and returns to the landing page", async () => {
     refreshAccessToken.mockResolvedValueOnce("token-1"); // bootstrap
     logout.mockResolvedValue(undefined);

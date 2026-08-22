@@ -187,6 +187,26 @@ describe("api/refresh", () => {
     expect(res.body).toEqual({ access_token: "fresh", expires_in: 3600 });
   });
 
+  it("persists a rotated refresh token via Set-Cookie when Spotify rotates it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            access_token: "fresh",
+            expires_in: 3600,
+            refresh_token: "rotated-refresh",
+          }),
+      }),
+    );
+    const sealed = sealSession("refresh-abc");
+    const res = mockRes();
+    await refresh({ method: "POST", headers: { cookie: `rt=${sealed}` } }, res);
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["Set-Cookie"]).toMatch(/^rt=/);
+  });
+
   it("returns 401 refresh_failed for a tampered cookie", async () => {
     const res = mockRes();
     await refresh({ method: "POST", headers: { cookie: "rt=garbage" } }, res);
