@@ -26,11 +26,13 @@ vi.mock("../LeafletMap.jsx", () => ({
     exploreMode,
     libraryArtists,
     onSelectArtist,
+    darkMode,
   }) => (
     <div
       data-testid="leaflet-map"
       data-explore-mode={exploreMode ? "true" : "false"}
       data-has-now-playing-marker={track && location ? "true" : "false"}
+      data-dark-mode={darkMode ? "true" : "false"}
     >
       <span data-testid="library-artist-count">
         {(libraryArtists ?? []).length}
@@ -67,6 +69,13 @@ vi.mock("../BrowseLibraryButton.jsx", () => ({
       onClick={onToggle}
     >
       {exploreMode ? "explore-mode-on" : "explore-mode-off"}
+    </button>
+  ),
+}));
+vi.mock("../ThemeToggleButton.jsx", () => ({
+  default: ({ darkMode, onToggle }) => (
+    <button type="button" data-testid="theme-toggle-button" onClick={onToggle}>
+      {darkMode ? "dark-mode-on" : "dark-mode-off"}
     </button>
   ),
 }));
@@ -418,6 +427,30 @@ describe("MapView explore mode", () => {
     expect(screen.getByTestId("leaflet-map")).toHaveAttribute(
       "data-explore-mode",
       "false",
+    );
+  });
+
+  it("defaults LeafletMap to dark mode and toggles it via ThemeToggleButton", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(null);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("leaflet-map")).toHaveAttribute(
+        "data-dark-mode",
+        "true",
+      ),
+    );
+
+    fireEvent.click(screen.getByTestId("theme-toggle-button"));
+    expect(screen.getByTestId("leaflet-map")).toHaveAttribute(
+      "data-dark-mode",
+      "false",
+    );
+
+    fireEvent.click(screen.getByTestId("theme-toggle-button"));
+    expect(screen.getByTestId("leaflet-map")).toHaveAttribute(
+      "data-dark-mode",
+      "true",
     );
   });
 

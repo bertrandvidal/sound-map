@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import LeafletMap, {
   ARTIST_ZOOM,
@@ -24,7 +24,7 @@ describe("zoomForLocation", () => {
 });
 
 describe("dark tiles toggle", () => {
-  function renderMap() {
+  function renderMap(darkMode) {
     return render(
       <LeafletMap
         track={null}
@@ -32,12 +32,13 @@ describe("dark tiles toggle", () => {
         exploreMode={false}
         libraryArtists={[]}
         onSelectArtist={vi.fn()}
+        darkMode={darkMode}
       />,
     );
   }
 
-  it("applies the dark-tiles class to the map container by default", () => {
-    const { container } = renderMap();
+  it("applies the dark-tiles class to the map container when darkMode is true", () => {
+    const { container } = renderMap(true);
     expect(
       container
         .querySelector(".leaflet-container")
@@ -45,9 +46,8 @@ describe("dark tiles toggle", () => {
     ).toBe(true);
   });
 
-  it("removes the dark-tiles class from the map container when toggled off", () => {
-    const { container } = renderMap();
-    fireEvent.click(screen.getByRole("button", { name: "Light map" }));
+  it("does not apply the dark-tiles class when darkMode is false", () => {
+    const { container } = renderMap(false);
     expect(
       container
         .querySelector(".leaflet-container")

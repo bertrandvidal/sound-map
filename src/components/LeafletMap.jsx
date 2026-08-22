@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import "./leafletDarkTiles.css";
 import AlbumBubble from "./AlbumBubble.jsx";
 import ArtistClusterLayer from "./ArtistClusterLayer.jsx";
-import ThemeToggleButton from "./ThemeToggleButton.jsx";
 
 // Zoom used when we actually know where the artist is from — close enough to
 // read the city/region around the bubble.
@@ -51,44 +50,36 @@ export default function LeafletMap({
   exploreMode,
   libraryArtists,
   onSelectArtist,
+  darkMode,
 }) {
-  // Dark by default, per design; resets on every mount — no persistence.
-  const [darkMode, setDarkMode] = useState(true);
-
   return (
-    <>
-      <ThemeToggleButton
-        darkMode={darkMode}
-        onToggle={() => setDarkMode((v) => !v)}
+    <MapContainer
+      center={[20, 0]}
+      zoom={2}
+      style={{ height: "100vh", width: "100%" }}
+    >
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
-      <MapContainer
-        center={[20, 0]}
-        zoom={2}
-        style={{ height: "100vh", width: "100%" }}
-      >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        />
-        <MapThemeClass darkMode={darkMode} />
-        {!exploreMode && location && track && (
-          <>
-            <MapController location={location} />
-            <AlbumBubble
-              location={location}
-              imageUrl={track.albumImageUrl}
-              trackName={track.trackName}
-              artistName={track.artistName}
-            />
-          </>
-        )}
-        {exploreMode && (
-          <ArtistClusterLayer
-            artists={libraryArtists}
-            onSelectArtist={onSelectArtist}
+      <MapThemeClass darkMode={darkMode} />
+      {!exploreMode && location && track && (
+        <>
+          <MapController location={location} />
+          <AlbumBubble
+            location={location}
+            imageUrl={track.albumImageUrl}
+            trackName={track.trackName}
+            artistName={track.artistName}
           />
-        )}
-      </MapContainer>
-    </>
+        </>
+      )}
+      {exploreMode && (
+        <ArtistClusterLayer
+          artists={libraryArtists}
+          onSelectArtist={onSelectArtist}
+        />
+      )}
+    </MapContainer>
   );
 }

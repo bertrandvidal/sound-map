@@ -10,6 +10,7 @@ import BrowseLibraryButton from "./BrowseLibraryButton.jsx";
 import LeafletMap from "./LeafletMap.jsx";
 import LibraryLoadingBadge from "./LibraryLoadingBadge.jsx";
 import NowPlayingCard from "./NowPlayingCard.jsx";
+import ThemeToggleButton from "./ThemeToggleButton.jsx";
 
 const POLL_MS = 5_000;
 const SCOPE_WARNING = "Log out and back in to enable Browse Library";
@@ -75,12 +76,26 @@ const STANDALONE_MESSAGE_STYLE = {
   color: MUTED,
 };
 
+// Groups BrowseLibraryButton and ThemeToggleButton into one bottom-left row
+// so the toggle sits directly beside "Browse library" rather than at its own
+// fixed screen position — the buttons themselves no longer self-position.
+const BUTTON_ROW_STYLE = {
+  position: "fixed",
+  bottom: 16,
+  left: 16,
+  zIndex: 1000,
+  display: "flex",
+  gap: 12,
+};
+
 export default function MapView({ token, onTokenExpired }) {
   const [track, setTrack] = useState(null);
   const [location, setLocation] = useState(null);
   const [status, setStatus] = useState("loading");
   const [controlMessage, setControlMessage] = useState(null);
   const [exploreMode, setExploreMode] = useState(false);
+  // Dark by default, per design; resets on every mount — no persistence.
+  const [darkMode, setDarkMode] = useState(true);
   const lastArtistRef = useRef(null);
   const refreshingRef = useRef(false);
   const mountedRef = useRef(true);
@@ -269,6 +284,7 @@ export default function MapView({ token, onTokenExpired }) {
         exploreMode={exploreMode}
         libraryArtists={artists}
         onSelectArtist={handleSelectArtist}
+        darkMode={darkMode}
       />
       {statusOverlayMessage && (
         <div style={STATUS_OVERLAY_STYLE}>
@@ -293,10 +309,16 @@ export default function MapView({ token, onTokenExpired }) {
         total={total}
         failedCount={failedCount}
       />
-      <BrowseLibraryButton
-        exploreMode={exploreMode}
-        onToggle={() => setExploreMode((v) => !v)}
-      />
+      <div style={BUTTON_ROW_STYLE}>
+        <BrowseLibraryButton
+          exploreMode={exploreMode}
+          onToggle={() => setExploreMode((v) => !v)}
+        />
+        <ThemeToggleButton
+          darkMode={darkMode}
+          onToggle={() => setDarkMode((v) => !v)}
+        />
+      </div>
     </div>
   );
 }
