@@ -1,0 +1,5 @@
+Run `npx biome check .`, explain each warning to me and suggest a fix
+
+---
+
+Fix both
