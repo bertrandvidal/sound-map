@@ -1,0 +1,24 @@
+/* Small "resolving location" spinner for NowPlayingCard.jsx. */
+@keyframes now-playing-location-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.location-spinner {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: now-playing-location-spin 0.7s linear infinite;
+  vertical-align: middle;
+}
+
+/* Respect reduced-motion users: a static ring is the correct fallback, not a spinning one. */
+@media (prefers-reduced-motion: reduce) {
+  .location-spinner {
+    animation: none;
+  }
+}

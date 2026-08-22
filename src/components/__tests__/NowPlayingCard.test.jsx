@@ -117,6 +117,36 @@ describe("NowPlayingCard", () => {
     );
   });
 
+  it("shows a location-loading state instead of the (stale) placeName", () => {
+    render(
+      <NowPlayingCard
+        track={makeTrack()}
+        placeName="Oxford, England"
+        locationLoading
+        onPlayPause={vi.fn()}
+        onNext={vi.fn()}
+        controlMessage={null}
+      />,
+    );
+    expect(screen.getByText("Finding location…")).toBeInTheDocument();
+    expect(screen.queryByText(/Oxford, England/)).not.toBeInTheDocument();
+  });
+
+  it("shows the place name (not the loading state) once locationLoading is false", () => {
+    render(
+      <NowPlayingCard
+        track={makeTrack()}
+        placeName="Oxford, England"
+        locationLoading={false}
+        onPlayPause={vi.fn()}
+        onNext={vi.fn()}
+        controlMessage={null}
+      />,
+    );
+    expect(screen.getByText(/Oxford, England/)).toBeInTheDocument();
+    expect(screen.queryByText("Finding location…")).not.toBeInTheDocument();
+  });
+
   it("shows the control message when provided and hides it when null", () => {
     const { rerender } = render(
       <NowPlayingCard

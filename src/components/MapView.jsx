@@ -2,7 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { lookupArtistLocation } from "../../shared/geocode.js";
 import { devLog } from "../devLog.js";
 import { classifyPollError } from "../pollError.js";
-import { fetchCurrentlyPlaying, pause, play, skipToNext } from "../spotify.js";
+import {
+  fetchCurrentlyPlaying,
+  fetchQueue,
+  pause,
+  play,
+  skipToNext,
+} from "../spotify.js";
 import { MUTED, overlayCardStyle } from "../theme.js";
 import { UNKNOWN_LOCATION } from "../unknownLocation.js";
 import { useLibraryArtists } from "../useLibraryArtists.js";
@@ -12,7 +18,10 @@ import LibraryLoadingBadge from "./LibraryLoadingBadge.jsx";
 import NowPlayingCard from "./NowPlayingCard.jsx";
 import ThemeToggleButton from "./ThemeToggleButton.jsx";
 
-const POLL_MS = 5_000;
+// Lowered from 5s: at 5s a track change could sit undetected for nearly that
+// long before the map/now-playing UI caught up. 3s is the floor before this
+// starts meaningfully raising Spotify API call volume for no real UX gain.
+const POLL_MS = 3_000;
 const SCOPE_WARNING = "Log out and back in to enable Browse Library";
 
 // A playback failure the user can act on beats an accurate one they can't.
@@ -91,6 +100,11 @@ const BUTTON_ROW_STYLE = {
 export default function MapView({ token, onTokenExpired }) {
   const [track, setTrack] = useState(null);
   const [location, setLocation] = useState(null);
+  // True only while a *new* artist's location is being looked up — lets the
+  // UI show a spinner instead of the previous artist's now-stale placeName,
+  // which otherwise reads as "this is where the new track is from" for the
+  // gap between the artist changing and the lookup resolving.
+  const [locationLoading, setLocationLoading] = useState(false);
   const [status, setStatus] = useState("loading");
   const [controlMessage, setControlMessage] = useState(null);
   const [exploreMode, setExploreMode] = useState(false);
@@ -128,6 +142,19 @@ export default function MapView({ token, onTokenExpired }) {
   const displayMessage =
     controlMessage ?? (scopeMissing ? SCOPE_WARNING : null);
 
+  // Shared by syncNowPlaying and handleNext's optimistic update, so both
+  // routes into "a new artist is now current" show the same loading spinner
+  // rather than the previous artist's placeName while the lookup is in
+  // flight.
+  const resolveLocationFor = useCallback(async (artistName) => {
+    setLocationLoading(true);
+    const loc = await lookupArtistLocation(artistName);
+    if (mountedRef.current) {
+      setLocation(loc ?? UNKNOWN_LOCATION);
+      setLocationLoading(false);
+    }
+  }, []);
+
   // Fetch the currently-playing track and update state. Throws on API error so
   // callers (the poll loop and the control handlers) can apply their own
   // error handling. Both share this so a control action can refresh instantly.
@@ -149,10 +176,9 @@ export default function MapView({ token, onTokenExpired }) {
     if (current.artistName !== lastArtistRef.current) {
       lastArtistRef.current = current.artistName;
       devLog(`[poll] artist changed, looking up ${current.artistName}`);
-      const loc = await lookupArtistLocation(current.artistName);
-      if (mountedRef.current) setLocation(loc ?? UNKNOWN_LOCATION);
+      await resolveLocationFor(current.artistName);
     }
-  }, [token]);
+  }, [token, resolveLocationFor]);
 
   // Shared TOKEN_EXPIRED refresh path, guarded so only one refresh runs at a
   // time even across overlapping poll/control errors.
@@ -224,13 +250,37 @@ export default function MapView({ token, onTokenExpired }) {
     // Optimistic flip so the icon updates immediately. We deliberately do NOT
     // re-sync here: Spotify's currently-playing read is eventually consistent
     // and for a moment still reports the old is_playing, which would clobber
-    // this flip and make the button flicker back. The 5s poll reconciles.
+    // this flip and make the button flicker back. The poll reconciles.
     setTrack((t) => (t ? { ...t, isPlaying: !wasPlaying } : t));
   }
 
   async function handleNext() {
+    // Peek the queue in parallel with the skip request itself (not after —
+    // once we skip, "next in queue" becomes stale) so knowing what's coming
+    // costs no extra latency on top of the skip.
+    const predicted = fetchQueue(token).catch(() => null);
     const ok = await runControl(() => skipToNext(token));
     if (!ok) return;
+
+    const next = await predicted;
+    if (next) {
+      // Show the predicted track immediately rather than waiting on the next
+      // poll (or an immediate resync) — the reason for the latter is that
+      // fetchCurrentlyPlaying is briefly eventually-consistent right after a
+      // skip and can still report the *previous* track, which would
+      // overwrite this optimistic update with stale data. The regular poll
+      // loop reconciles from here (and catches cases where the queue peek
+      // didn't match what Spotify actually played next).
+      setTrack(next);
+      if (next.artistName !== lastArtistRef.current) {
+        lastArtistRef.current = next.artistName;
+        resolveLocationFor(next.artistName);
+      }
+      return;
+    }
+
+    // No queue to peek at (e.g. empty queue) — fall back to resyncing
+    // against Spotify directly.
     syncNowPlaying().catch(() => {});
   }
 
@@ -295,6 +345,7 @@ export default function MapView({ token, onTokenExpired }) {
         <NowPlayingCard
           track={track}
           placeName={location?.placeName}
+          locationLoading={locationLoading}
           onPlayPause={handlePlayPause}
           onNext={handleNext}
           controlMessage={displayMessage}
