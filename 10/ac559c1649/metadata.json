@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "10ac559c1649",
+  "strategy": "manual-commit",
+  "branch": "dark-map-tiles-toggle",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/components/LeafletMap.jsx",
+    "src/components/ThemeToggleButton.jsx",
+    "src/components/__tests__/LeafletMap.test.jsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/10/ac559c1649/0/metadata.json",
+      "transcript": "/10/ac559c1649/0/full.jsonl",
+      "compact_transcript": "/10/ac559c1649/0/transcript.jsonl",
+      "content_hash": "/10/ac559c1649/0/content_hash.txt",
+      "prompt": "/10/ac559c1649/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 40,
+    "cache_creation_tokens": 17144,
+    "cache_read_tokens": 3142401,
+    "output_tokens": 12133,
+    "api_call_count": 20
+  }
+}
