@@ -1,0 +1,1 @@
+Move the toggle button to the right of the "browse library/now playing" button instead
