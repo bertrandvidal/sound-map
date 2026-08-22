@@ -300,6 +300,26 @@ describe("MapView poll loop", () => {
     );
   });
 
+  it("falls back to resyncing when the queue peek itself fails", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    fetchQueue.mockRejectedValueOnce(new Error("SPOTIFY_ERROR:500"));
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-card")).toBeInTheDocument(),
+    );
+    const callsBeforeSkip = fetchCurrentlyPlaying.mock.calls.length;
+    fireEvent.click(screen.getByText("next"));
+    await waitFor(() => expect(skipToNext).toHaveBeenCalledWith("t"));
+    // the failed peek is swallowed (treated the same as an empty queue), not
+    // left to reject and crash handleNext
+    await waitFor(() =>
+      expect(fetchCurrentlyPlaying.mock.calls.length).toBeGreaterThan(
+        callsBeforeSkip,
+      ),
+    );
+    expect(screen.getByTestId("now-playing-card")).toBeInTheDocument();
+  });
+
   it("swallows a resync error after a successful skip", async () => {
     fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
     render(<MapView token="t" onTokenExpired={vi.fn()} />);
