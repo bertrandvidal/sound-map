@@ -18,7 +18,7 @@ the `/api/*` serverless functions on one origin — the same shape as production
 
 To run a single test file:
 ```bash
-npx vitest run src/__tests__/geo.test.js
+npx vitest run shared/__tests__/geocode.test.js
 ```
 
 ## Architecture
@@ -74,17 +74,21 @@ mistake `failedCount` exists to prevent. Every unknown shares one coordinate,
 so leaflet.markercluster groups them into a single bubble that spiderfies at
 max zoom.
 
-**`src/spotify.js`** — Spotify Web API client: `fetchCurrentlyPlaying(token)` (polls `/me/player/currently-playing`) plus the `play`/`pause`/`skipToNext` player controls and `fetchDevices(token)`. Throws structured errors: `TOKEN_EXPIRED`, `RATE_LIMITED:<seconds>`, `SPOTIFY_ERROR:<status>`, and for player calls `PLAYBACK_UNAVAILABLE` (403) / `NO_ACTIVE_DEVICE` (404) / `INSUFFICIENT_SCOPE`. Login starts at the server's `/api/login`, not here.
+**`src/spotify.js`** — Spotify Web API client: `fetchCurrentlyPlaying(token)` (polls `/me/player/currently-playing`) plus the `play`/`pause`/`skipToNext` player controls, `fetchDevices(token)`, and `fetchQueue(token)` (`GET /me/player/queue`, peeked by `MapView`'s skip handler — see below). Throws structured errors: `TOKEN_EXPIRED`, `RATE_LIMITED:<seconds>`, `SPOTIFY_ERROR:<status>`, and for player calls `PLAYBACK_UNAVAILABLE` (403) / `NO_ACTIVE_DEVICE` (404) / `INSUFFICIENT_SCOPE`. Login starts at the server's `/api/login`, not here.
 
 `PUT /me/player/play` **404s when nothing is currently playing** — the common case on a fresh login, where Spotify is open somewhere but idle. `play()` therefore recovers: on `NO_ACTIVE_DEVICE` it calls `fetchDevices` and retries against a reachable device with `?device_id=`. Only `play` does this — pause/next against no device are meaningless, and waking a client just to pause it would be surprising. Devices with `is_restricted` are skipped (they accept no Web API commands, so targeting one turns a visible 404 into a silent no-op); an already-active device wins when present. If *nothing* is open anywhere, `NO_ACTIVE_DEVICE` is rethrown with its original meaning — no API call can fix that, only the user opening Spotify.
 
 `fetchDevices` needs the **`user-read-playback-state`** scope. It maps 403 to its own `INSUFFICIENT_SCOPE` rather than `PLAYBACK_UNAVAILABLE`, because for a session minted before that scope was added the cause is stale consent, not a missing Premium subscription — telling that user to buy something they already have is worse than saying nothing. `MapView`'s `CONTROL_MESSAGES` turns each of these into an instruction the user can act on; only genuinely unrecognized failures get the generic "Playback control not available".
 
+**`src/components/MapView.jsx`** polls `fetchCurrentlyPlaying` every `POLL_MS` (3s) and, on artist change, geocodes via `resolveLocationFor`, which also drives a `locationLoading` flag so `NowPlayingCard` shows a spinner instead of silently displaying the *previous* artist's stale placeName while the new one resolves. `handleNext` fires `fetchQueue(token)` in parallel with the skip request to predict the next track, and — when that succeeds — applies the prediction directly instead of immediately resyncing via `fetchCurrentlyPlaying`: right after a skip that endpoint is briefly eventually-consistent and can still report the *pre-skip* track, which would silently clobber the optimistic update. The regular poll loop reconciles from there; only an empty or failed queue peek falls back to the old immediate-resync behavior.
+
 **`shared/geocode.js`** — the single MusicBrainz → Nominatim implementation, imported by *both* the browser (`MapView`, for now-playing) and the server (`api/geocode.js`, for explore mode); there is no separate `src/geo.js`. `lookupArtistLocation(artistName)` queries MusicBrainz for the artist's `begin-area` or `area`, then resolves it to lat/lng via Nominatim. Returns `null` on any failure; `MapView` maps `null` to the Pacific Ocean fallback `{ lat: 0, lng: -160, unknown: true }` rather than leaving the marker at the previous artist's location — the `unknown` flag makes `LeafletMap` fly out to a wide zoom instead of framing empty ocean. Its optional second argument takes an `acquireNominatimThrottle` callback so the server can rate-limit that hop independently of the MusicBrainz one, plus an `areaCache` (`{ get, set }`) it consults before spending the area-parent request; the browser passes neither and always goes to the network.
 
 Area names are not unique, and Nominatim ranks a free-text search by "importance" — a bare `Aberdeen` resolves to Scotland, so Nirvana landed in the North Sea. The Nominatim query is therefore narrowed with the structure MusicBrainz already has: `countrycodes` from the artist's ISO country, plus the area's **parent area** (`GET /area/<id>?inc=area-rels` → the `part of` relation with `direction: "backward"`), giving `q=Aberdeen, Grays Harbor County&countrycodes=us`. Country alone is not enough — it resolves to Aberdeen, *South Dakota*. That parent lookup is a second MusicBrainz request, so `MUSICBRAINZ_CALLS_PER_LOOKUP` exists for callers to reserve airtime for both hops in one throttle acquisition (`api/geocode.js` holds `throttle:musicbrainz` for 2 × the interval); taking a second lock mid-lookup would deadlock against the one the same request still holds. The parent hop degrades to `null` on any failure — the country filter alone still beats an unqualified search. `placeName` carries the region from Nominatim's `addressdetails` ("Aberdeen, Washington"), requested with `accept-language=en` so labels don't come back localized.
 
-**`src/components/LeafletMap.jsx`** — wraps `react-leaflet`. `MapController` is an inner component that calls `map.flyTo()` imperatively (the only way to trigger Leaflet animations from React state changes). `AlbumBubble` uses a `L.divIcon` with a circular `<img>` as the marker.
+**`src/components/LeafletMap.jsx`** — wraps `react-leaflet`. `MapController` is an inner component that calls `map.flyTo()` imperatively (the only way to trigger Leaflet animations from React state changes). `AlbumBubble` uses a `L.divIcon` with a circular `<img>` as the marker. `darkMode` toggles a `dark-tiles` class on the map container imperatively via `MapThemeClass` (react-leaflet freezes `MapContainer`'s own `className` prop after first mount, so a prop-driven class silently stops reacting to later state changes); `leafletDarkTiles.css` uses that class to invert/hue-rotate OSM's light tiles into a dark theme, scoped to the tile layer plus Leaflet's own zoom/attribution controls so marker/popup panes are untouched.
+
+**`src/index.css`** — global reset (`margin: 0` on `body`; `height: 100%` on `html`/`body`/`#root`). Without it, the browser's default 8px `body` margin makes the document a few px taller than the `100vh` map, adding a page scrollbar that pushes Leaflet's bottom-right attribution control (required by the OSM/Leaflet license) below the fold.
 
 **`src/useLibraryArtists.js`** — the explore-mode resolution loop described above: `fetchFollowedArtists` (`GET /me/following?type=artist`, needs the `user-follow-read` scope) then a walk over `POST /api/geocode` driven by `RESOLUTION_CONCURRENCY` workers pulling from one shared queue, retrying `throttled` responses after the server-supplied `retryAfterMs` plus a random spread of up to `RETRY_JITTER_MS`. The jitter is not optional: the server answers every denied caller with the lock's *exact* remaining TTL, so without it concurrent workers wake in lockstep and stampede a lock only one can win.
 
@@ -146,6 +150,8 @@ rather than set by hand. `Redis.fromEnv()` does **not** work here; see
 
 Tests use **Vitest** with `jsdom` environment. All HTTP calls are mocked via `vi.stubGlobal('fetch', ...)` — no real network calls in tests. `vi.restoreAllMocks()` runs in `beforeEach`.
 
+CI additionally runs `npx vitest run --coverage` against a strict **per-file** threshold (`test.coverage` in `vite.config.js`, v8 provider): statements ≥90%, branches ≥75%, functions =100%. It applies to every file matched by `coverage.include` (all of `src/`, `server/`, `api/`, `shared/`) except a short disallow-list of files that need real DOM/canvas sizing jsdom can't provide (`LeafletMap.jsx`, `AlbumBubble.jsx`, `ArtistMarker.jsx`, `ArtistClusterLayer.jsx`, plus `main.jsx`) — do not add a file to that list just to make coverage pass. The usual failure is one untested branch (an error `.catch()`, an early return) rather than a whole untested function; run `npx vitest run --coverage` locally and check the per-file table before pushing if you've touched control flow.
+
 ## Git commits
 
 **Never commit directly to `main`.** All changes go through a feature branch and a PR. Create an appropriately-named branch (lowercase, digits, and hyphens only — no type/prefix notation) before your first commit, and open a PR to merge it into `main`.
@@ -171,15 +177,3 @@ The same checks run in GitHub Actions CI on every push and PR. PRs cannot be mer
 ## Superpowers
 
 This repo uses https://github.com/obra/superpowers, all info stored in docs/superpowers.
-
-## Goal
-
-Beyond creating a fun app the goal of the author is to learn new technologies, how to be efficient with AI, and more specifically using Superpowers. When making a design decision or when improvements can be made involve the author and explain your reasoning it help the author learn.
-Some of the technologies the author is interested in can be found below - it does NOT mean we have to use those technologies:
-- Kubernetes
-- Terraform / IaC
-- AWS Step Function / Serverless
-- AWS API Gateway
-- AWS Cognito
-- Kafka / streaming
-- Data plane/control plane
