@@ -1,0 +1,13 @@
+/* Filter recipe from https://dev.to/deepakdevanand/leaflet-map-dark-theme-5ej0 —
+   inverting + rotating hue turns OSM's light basemap dark without swapping
+   tile providers. Scoped to the tile layer plus Leaflet's own zoom/attribution
+   controls (same elements the article targets) so those stay legible against
+   the rest of the app's dark UI too. Marker/popup panes are siblings of
+   .leaflet-layer, not descendants, so AlbumBubble/cluster markers are
+   untouched. */
+.dark-tiles .leaflet-layer,
+.dark-tiles .leaflet-control-zoom-in,
+.dark-tiles .leaflet-control-zoom-out,
+.dark-tiles .leaflet-control-attribution {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
