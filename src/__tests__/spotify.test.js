@@ -3,6 +3,7 @@ import {
   fetchCurrentlyPlaying,
   fetchDevices,
   fetchFollowedArtists,
+  fetchQueue,
   pause,
   play,
   skipToNext,
@@ -233,6 +234,88 @@ describe("player controls (play / pause / skipToNext)", () => {
     });
     expect(init.body).toBeUndefined();
     expect(init.headers["Content-Type"]).toBeUndefined();
+  });
+});
+
+describe("fetchQueue", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns the next queued track, mapped like fetchCurrentlyPlaying", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        headers: { get: () => null },
+        json: () =>
+          Promise.resolve({
+            currently_playing: { id: "current-track" },
+            queue: [
+              {
+                id: "track-2",
+                name: "Everything In Its Right Place",
+                duration_ms: 250000,
+                artists: [{ name: "Radiohead" }],
+                album: { images: [{ url: "https://example.com/next.jpg" }] },
+              },
+              { id: "track-3", name: "Idioteque" },
+            ],
+          }),
+      }),
+    );
+    expect(await fetchQueue("token")).toEqual({
+      trackName: "Everything In Its Right Place",
+      artistName: "Radiohead",
+      artistNames: "Radiohead",
+      albumImageUrl: "https://example.com/next.jpg",
+      trackId: "track-2",
+      isPlaying: true,
+      progressMs: 0,
+      durationMs: 250000,
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.spotify.com/v1/me/player/queue",
+      { headers: { Authorization: "Bearer token" } },
+    );
+  });
+
+  it("returns null when the queue is empty", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        headers: { get: () => null },
+        json: () => Promise.resolve({ currently_playing: null, queue: [] }),
+      }),
+    );
+    expect(await fetchQueue("token")).toBeNull();
+  });
+
+  it("throws TOKEN_EXPIRED on HTTP 401", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 401,
+        ok: false,
+        headers: { get: () => null },
+      }),
+    );
+    await expect(fetchQueue("token")).rejects.toThrow("TOKEN_EXPIRED");
+  });
+
+  it("throws RATE_LIMITED with retry seconds on HTTP 429", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 429,
+        ok: false,
+        headers: { get: () => "8" },
+      }),
+    );
+    await expect(fetchQueue("token")).rejects.toThrow("RATE_LIMITED:8");
   });
 });
 

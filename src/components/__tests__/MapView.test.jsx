@@ -12,6 +12,7 @@ vi.mock("../../../shared/geocode.js", () => ({
 }));
 vi.mock("../../spotify.js", () => ({
   fetchCurrentlyPlaying: vi.fn(),
+  fetchQueue: vi.fn().mockResolvedValue(null),
   play: vi.fn().mockResolvedValue(undefined),
   pause: vi.fn().mockResolvedValue(undefined),
   skipToNext: vi.fn().mockResolvedValue(undefined),
@@ -49,8 +50,18 @@ vi.mock("../LeafletMap.jsx", () => ({
   ),
 }));
 vi.mock("../NowPlayingCard.jsx", () => ({
-  default: ({ onPlayPause, onNext, controlMessage }) => (
+  default: ({
+    track,
+    locationLoading,
+    onPlayPause,
+    onNext,
+    controlMessage,
+  }) => (
     <div data-testid="now-playing-card">
+      <span data-testid="now-playing-track-name">{track.trackName}</span>
+      <span data-testid="now-playing-location-loading">
+        {locationLoading ? "loading" : "idle"}
+      </span>
       <button type="button" onClick={onPlayPause}>
         play-pause
       </button>
@@ -91,6 +102,7 @@ vi.mock("../LibraryLoadingBadge.jsx", () => ({
 import { lookupArtistLocation } from "../../../shared/geocode.js";
 import {
   fetchCurrentlyPlaying,
+  fetchQueue,
   pause,
   play,
   skipToNext,
@@ -196,6 +208,96 @@ describe("MapView poll loop", () => {
     );
     fireEvent.click(screen.getByText("next"));
     await waitFor(() => expect(skipToNext).toHaveBeenCalledWith("t"));
+    expect(fetchQueue).toHaveBeenCalledWith("t");
+  });
+
+  it("shows the predicted next track immediately after a skip, without waiting on a resync", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    fetchQueue.mockResolvedValueOnce({
+      trackName: "Everything In Its Right Place",
+      artistName: "Radiohead",
+      artistNames: "Radiohead",
+      albumImageUrl: "https://example.com/next.jpg",
+      trackId: "track-2",
+      isPlaying: true,
+      progressMs: 0,
+      durationMs: 250_000,
+    });
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-card")).toBeInTheDocument(),
+    );
+    const callsBeforeSkip = fetchCurrentlyPlaying.mock.calls.length;
+    fireEvent.click(screen.getByText("next"));
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-track-name")).toHaveTextContent(
+        "Everything In Its Right Place",
+      ),
+    );
+    // knowing what's next from the queue peek means no immediate resync —
+    // fetchCurrentlyPlaying is briefly eventually-consistent right after a
+    // skip and could otherwise clobber this with the pre-skip track.
+    expect(fetchCurrentlyPlaying.mock.calls.length).toBe(callsBeforeSkip);
+  });
+
+  it("shows a location-loading state while a newly predicted artist's location resolves", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    fetchQueue.mockResolvedValueOnce({
+      trackName: "Purple Rain",
+      artistName: "Prince",
+      artistNames: "Prince",
+      albumImageUrl: "https://example.com/prince.jpg",
+      trackId: "track-3",
+      isPlaying: true,
+      progressMs: 0,
+      durationMs: 240_000,
+    });
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-card")).toBeInTheDocument(),
+    );
+    // Queued only now — the initial mount already consumed one
+    // lookupArtistLocation call for Radiohead via the default mock.
+    let resolveLocation;
+    lookupArtistLocation.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveLocation = resolve;
+        }),
+    );
+    fireEvent.click(screen.getByText("next"));
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-track-name")).toHaveTextContent(
+        "Purple Rain",
+      ),
+    );
+    expect(
+      screen.getByTestId("now-playing-location-loading"),
+    ).toHaveTextContent("loading");
+
+    resolveLocation({ placeName: "Minneapolis, Minnesota" });
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("now-playing-location-loading"),
+      ).toHaveTextContent("idle"),
+    );
+  });
+
+  it("falls back to resyncing when the queue has nothing to predict", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    fetchQueue.mockResolvedValueOnce(null);
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-card")).toBeInTheDocument(),
+    );
+    const callsBeforeSkip = fetchCurrentlyPlaying.mock.calls.length;
+    fireEvent.click(screen.getByText("next"));
+    await waitFor(() => expect(skipToNext).toHaveBeenCalledWith("t"));
+    await waitFor(() =>
+      expect(fetchCurrentlyPlaying.mock.calls.length).toBeGreaterThan(
+        callsBeforeSkip,
+      ),
+    );
   });
 
   it("swallows a resync error after a successful skip", async () => {
@@ -326,7 +428,7 @@ describe("MapView poll loop", () => {
       "true",
     );
 
-    // the poll interval (5s) fires again and this time nothing is playing
+    // the poll interval (3s) fires again and this time nothing is playing
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5_000);
     });

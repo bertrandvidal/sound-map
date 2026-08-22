@@ -7,6 +7,7 @@ import {
   SURFACE_ALT,
   TEXT,
 } from "../theme.js";
+import "./nowPlayingCard.css";
 
 function PlayIcon() {
   return (
@@ -55,6 +56,7 @@ const iconButton = {
 export default function NowPlayingCard({
   track,
   placeName,
+  locationLoading = false,
   onPlayPause,
   onNext,
   controlMessage,
@@ -119,7 +121,18 @@ export default function NowPlayingCard({
           <div
             style={{ color: MUTED, fontSize: 12, marginTop: 2, ...ellipsis }}
           >
-            📍 {placeName ?? "Unknown location"}
+            {locationLoading ? (
+              <span
+                role="status"
+                aria-live="polite"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                <span className="location-spinner" aria-hidden="true" />
+                Finding location…
+              </span>
+            ) : (
+              <>📍 {placeName ?? "Unknown location"}</>
+            )}
           </div>
         </div>
       </div>

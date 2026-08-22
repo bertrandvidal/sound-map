@@ -122,6 +122,37 @@ export async function play(token, { contextUri, deviceId } = {}) {
 export const pause = (token) => playerCommand("PUT", "pause", token);
 export const skipToNext = (token) => playerCommand("POST", "next", token);
 
+/**
+ * Peeks at the track Spotify will play next, so a caller can show it
+ * optimistically the moment they trigger a skip instead of waiting on the
+ * next-currently-playing poll (which lags behind a skip by up to POLL_MS,
+ * and is briefly eventually-consistent right after one). Returns null if
+ * there's nothing queued up — callers should fall back to their normal
+ * resync path in that case.
+ */
+export async function fetchQueue(token) {
+  const response = await fetch("https://api.spotify.com/v1/me/player/queue", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const err = spotifyError(response);
+  if (err) throw err;
+
+  const data = await response.json();
+  const next = data.queue?.[0];
+  if (!next) return null;
+
+  return {
+    trackName: next.name,
+    artistName: next.artists[0]?.name ?? null,
+    artistNames: next.artists.map((a) => a.name).join(", ") || null,
+    albumImageUrl: next.album.images[0]?.url ?? null,
+    trackId: next.id,
+    isPlaying: true,
+    progressMs: 0,
+    durationMs: next.duration_ms,
+  };
+}
+
 export async function fetchFollowedArtists(token) {
   const artists = [];
   let after;
