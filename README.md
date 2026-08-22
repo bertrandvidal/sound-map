@@ -4,7 +4,7 @@ Map the music you listen to — see where artists are from as album art bubbles 
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org) (v18 or later)
+- [Node.js](https://nodejs.org) — see `engines` in `package.json` for the exact supported versions (currently 22.22+, 24.15+, or 26+)
 - A Spotify account
 - A Spotify Developer app ([create one here](https://developer.spotify.com/dashboard))
 
