@@ -1,0 +1,9 @@
+Spin up and agent to take care of the dependabot PRs
+
+---
+
+Using new packages was not explicitely denied. Look at https://github.com/kristjanesperanto/leaflet-theme-control / https://codepen.io/dpkd/pen/XWxyLQv / https://gist.github.com/BrendonKoz/b1df234fe3ee388b402cd8e98f7eedbd / https://dev.to/deepakdevanand/leaflet-map-dark-theme-5ej0 and shortlist 2 options and make a recommendation
+
+---
+
+Let's do option 1. Use the value you found in the links I shared.
