@@ -7,7 +7,10 @@ export default function ThemeToggleButton({ darkMode, onToggle }) {
       onClick={onToggle}
       style={{
         position: "fixed",
-        top: 16,
+        // Leaflet's own zoom control defaults to this same top-left corner
+        // (~10px margin, ~62px tall for its two stacked buttons) — sitting
+        // below it instead of on top avoids covering it.
+        top: 90,
         left: 16,
         zIndex: 1000,
         border: "none",
