@@ -154,6 +154,22 @@ describe("MapView poll loop", () => {
     vi.useRealTimers();
   });
 
+  it("does not fire a stale rate-limit retry after unmount (the retry setTimeout is untracked, unlike the cleared interval)", async () => {
+    vi.useFakeTimers();
+    fetchCurrentlyPlaying.mockRejectedValue(new Error("RATE_LIMITED:2"));
+    const { unmount } = render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await vi.advanceTimersByTimeAsync(0); // initial poll rejects, schedules a bare setTimeout retry
+    const callsBeforeUnmount = fetchCurrentlyPlaying.mock.calls.length;
+
+    // Cleanup clears the setInterval, but the retry setTimeout scheduled
+    // above is a separate, untracked timer — it still fires after this.
+    unmount();
+
+    await vi.advanceTimersByTimeAsync(2000); // the stale retry fires
+    expect(fetchCurrentlyPlaying.mock.calls.length).toBe(callsBeforeUnmount);
+    vi.useRealTimers();
+  });
+
   it("guards against concurrent refreshes across overlapping polls", async () => {
     vi.useFakeTimers();
     fetchCurrentlyPlaying.mockRejectedValue(new Error("TOKEN_EXPIRED"));
