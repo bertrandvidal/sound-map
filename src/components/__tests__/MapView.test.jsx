@@ -172,6 +172,71 @@ describe("MapView poll loop", () => {
     vi.useRealTimers();
   });
 
+  it("ignores a poll that resolves after the component has unmounted", async () => {
+    let resolvePoll;
+    fetchCurrentlyPlaying.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePoll = resolve;
+      }),
+    );
+    const { unmount } = render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    unmount();
+
+    // Resolving after unmount must not call setState on the unmounted
+    // component (MapView's mountedRef guard inside syncNowPlaying).
+    resolvePoll(PLAYING_TRACK);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it("ignores a poll error that arrives after the component has unmounted", async () => {
+    let rejectPoll;
+    fetchCurrentlyPlaying.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        rejectPoll = reject;
+      }),
+    );
+    const { unmount } = render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    unmount();
+
+    // A poll error surfacing after unmount must not log "[poll] error:" or
+    // otherwise touch state — the `cancelled` guard at the top of poll()'s
+    // catch block exists for exactly this race.
+    rejectPoll(new Error("SPOTIFY_ERROR:500"));
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(console.error).not.toHaveBeenCalledWith(
+      "[poll] error:",
+      "SPOTIFY_ERROR:500",
+    );
+  });
+
+  it("ignores an artist location lookup that resolves after the component has unmounted", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    let resolveLocation;
+    lookupArtistLocation.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveLocation = resolve;
+      }),
+    );
+    const { unmount } = render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() => expect(lookupArtistLocation).toHaveBeenCalled());
+    unmount();
+
+    // Resolving after unmount must not call setLocation/setLocationLoading
+    // on the unmounted component (resolveLocationFor's mountedRef guard).
+    resolveLocation({ lat: 1, lng: 2, placeName: "Oxford" });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
   it("looks up the artist and renders the map when a track is playing", async () => {
     fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
     render(<MapView token="t" onTokenExpired={vi.fn()} />);
@@ -198,6 +263,40 @@ describe("MapView poll loop", () => {
     fireEvent.click(screen.getByText("play-pause"));
     await waitFor(() => expect(pause).toHaveBeenCalledWith("t"));
     expect(play).not.toHaveBeenCalled();
+  });
+
+  it("plays via the control handler when the track is paused", async () => {
+    pause.mockClear();
+    play.mockClear();
+    fetchCurrentlyPlaying.mockResolvedValue({
+      ...PLAYING_TRACK,
+      isPlaying: false,
+    });
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-card")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByText("play-pause"));
+    await waitFor(() => expect(play).toHaveBeenCalledWith("t"));
+    expect(pause).not.toHaveBeenCalled();
+  });
+
+  it("shows a control message and does not resync when the skip itself fails", async () => {
+    fetchCurrentlyPlaying.mockResolvedValue(PLAYING_TRACK);
+    skipToNext.mockRejectedValueOnce(new Error("NO_ACTIVE_DEVICE"));
+    render(<MapView token="t" onTokenExpired={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByTestId("now-playing-card")).toBeInTheDocument(),
+    );
+    const callsBeforeSkip = fetchCurrentlyPlaying.mock.calls.length;
+    fireEvent.click(screen.getByText("next"));
+    await waitFor(() =>
+      expect(
+        screen.getByText("Open Spotify on any device, then try again"),
+      ).toBeInTheDocument(),
+    );
+    // handleNext bails out before touching the predicted-track/resync path.
+    expect(fetchCurrentlyPlaying.mock.calls.length).toBe(callsBeforeSkip);
   });
 
   it("skips to next via the control handler", async () => {

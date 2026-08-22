@@ -191,6 +191,22 @@ describe("NowPlayingCard", () => {
     expect(name).toHaveStyle({ textOverflow: "ellipsis" });
   });
 
+  it("falls back to safe defaults when progress/duration/place data is missing", () => {
+    render(
+      <NowPlayingCard
+        track={makeTrack({ progressMs: undefined, durationMs: undefined })}
+        onPlayPause={vi.fn()}
+        onNext={vi.fn()}
+        controlMessage={null}
+      />,
+    );
+    expect(screen.getByTestId("progress-time")).toHaveTextContent(
+      "0:00 / 0:00",
+    );
+    expect(screen.getByTestId("progress-fill")).toHaveStyle({ width: "0%" });
+    expect(screen.getByText(/Unknown location/)).toBeInTheDocument();
+  });
+
   describe("progress interpolation", () => {
     beforeEach(() => {
       vi.useFakeTimers();
@@ -211,6 +227,24 @@ describe("NowPlayingCard", () => {
       );
       // Advance past several 500ms ticks to exercise the interval branch.
       vi.advanceTimersByTime(1500);
+      expect(screen.getByTestId("progress-fill")).toBeInTheDocument();
+    });
+
+    it("caps interpolation at the elapsed time itself when durationMs is missing", () => {
+      render(
+        <NowPlayingCard
+          track={makeTrack({
+            isPlaying: true,
+            progressMs: 1000,
+            durationMs: undefined,
+          })}
+          placeName="X"
+          onPlayPause={vi.fn()}
+          onNext={vi.fn()}
+          controlMessage={null}
+        />,
+      );
+      vi.advanceTimersByTime(500);
       expect(screen.getByTestId("progress-fill")).toBeInTheDocument();
     });
 

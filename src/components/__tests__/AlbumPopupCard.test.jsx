@@ -26,4 +26,13 @@ describe("AlbumPopupCard", () => {
     expect(screen.getByText(/Unknown location/)).toBeInTheDocument();
     expect(screen.queryByRole("img")).toBeNull();
   });
+
+  it("falls back to an empty alt attribute when artistName is missing but an image is present", () => {
+    // An <img alt=""> is exposed with the implicit "presentation" role, not
+    // "img", so it must be queried directly rather than via getByRole.
+    const { container } = render(
+      <AlbumPopupCard imageUrl="https://example.com/a.jpg" trackName="X" />,
+    );
+    expect(container.querySelector("img")).toHaveAttribute("alt", "");
+  });
 });

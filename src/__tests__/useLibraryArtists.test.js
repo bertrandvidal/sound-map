@@ -371,6 +371,38 @@ describe("useLibraryArtists", () => {
     expect(result.current.resolvedCount).toBe(0);
   });
 
+  it("does not set scopeMissing for a fetchFollowedArtists failure other than a 403", async () => {
+    fetchFollowedArtists
+      .mockReset()
+      .mockRejectedValue(new Error("SPOTIFY_ERROR:500"));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useLibraryArtists("token-1"));
+
+    await waitFor(() => expect(fetchFollowedArtists).toHaveBeenCalledTimes(1));
+    // let the rejection's catch handler run before asserting
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.scopeMissing).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not start the resolution loop when there is no token", () => {
+    fetchFollowedArtists.mockClear();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useLibraryArtists(null));
+
+    expect(fetchFollowedArtists).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.current.total).toBe(0);
+    expect(result.current.artists).toEqual([]);
+  });
+
   it("aborts every in-flight geocode request on a token change and starts no more for the stale loop", async () => {
     fetchFollowedArtists
       .mockResolvedValueOnce([

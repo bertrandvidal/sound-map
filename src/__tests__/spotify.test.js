@@ -113,6 +113,39 @@ describe("fetchCurrentlyPlaying", () => {
       "SPOTIFY_ERROR:503",
     );
   });
+
+  it("falls back to null for artistName/albumImageUrl when Spotify omits them", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        headers: { get: () => null },
+        json: () =>
+          Promise.resolve({
+            is_playing: true,
+            progress_ms: 0,
+            item: {
+              id: "track-1",
+              name: "Untitled",
+              duration_ms: 1000,
+              artists: [],
+              album: { images: [] },
+            },
+          }),
+      }),
+    );
+    expect(await fetchCurrentlyPlaying("token")).toEqual({
+      trackName: "Untitled",
+      artistName: null,
+      artistNames: null,
+      albumImageUrl: null,
+      trackId: "track-1",
+      isPlaying: true,
+      progressMs: 0,
+      durationMs: 1000,
+    });
+  });
 });
 
 describe("player controls (play / pause / skipToNext)", () => {
@@ -235,6 +268,14 @@ describe("player controls (play / pause / skipToNext)", () => {
     expect(init.body).toBeUndefined();
     expect(init.headers["Content-Type"]).toBeUndefined();
   });
+
+  it("resolves without throwing on an unexpected-but-ok non-204 response", async () => {
+    // playerCommand only special-cases 204; any other ok response must not
+    // be mistaken for an error just because spotifyError() didn't match a
+    // status override.
+    stub({ status: 200, ok: true, headers: { get: () => null } });
+    await expect(pause("token")).resolves.toBeUndefined();
+  });
 });
 
 describe("fetchQueue", () => {
@@ -316,6 +357,39 @@ describe("fetchQueue", () => {
       }),
     );
     await expect(fetchQueue("token")).rejects.toThrow("RATE_LIMITED:8");
+  });
+
+  it("falls back to null for artistName/albumImageUrl when the queued track omits them", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        headers: { get: () => null },
+        json: () =>
+          Promise.resolve({
+            queue: [
+              {
+                id: "track-9",
+                name: "Untitled",
+                duration_ms: 5000,
+                artists: [],
+                album: { images: [] },
+              },
+            ],
+          }),
+      }),
+    );
+    expect(await fetchQueue("token")).toEqual({
+      trackName: "Untitled",
+      artistName: null,
+      artistNames: null,
+      albumImageUrl: null,
+      trackId: "track-9",
+      isPlaying: true,
+      progressMs: 0,
+      durationMs: 5000,
+    });
   });
 });
 

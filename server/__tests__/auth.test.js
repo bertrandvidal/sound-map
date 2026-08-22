@@ -43,6 +43,17 @@ describe("parseCookies", () => {
   it("falls back to the raw value when a cookie value is malformed", () => {
     expect(parseCookies("sid=%")).toEqual({ sid: "%" });
   });
+
+  it("skips a segment with no '=' delimiter", () => {
+    expect(parseCookies("sid=abc123; flag; other=xyz")).toEqual({
+      sid: "abc123",
+      other: "xyz",
+    });
+  });
+
+  it("skips a segment with an empty name", () => {
+    expect(parseCookies("=novalue; sid=abc123")).toEqual({ sid: "abc123" });
+  });
 });
 
 describe("exchangeRefreshToken", () => {
