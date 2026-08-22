@@ -177,15 +177,3 @@ The same checks run in GitHub Actions CI on every push and PR. PRs cannot be mer
 ## Superpowers
 
 This repo uses https://github.com/obra/superpowers, all info stored in docs/superpowers.
-
-## Goal
-
-Beyond creating a fun app the goal of the author is to learn new technologies, how to be efficient with AI, and more specifically using Superpowers. When making a design decision or when improvements can be made involve the author and explain your reasoning it help the author learn.
-Some of the technologies the author is interested in can be found below - it does NOT mean we have to use those technologies:
-- Kubernetes
-- Terraform / IaC
-- AWS Step Function / Serverless
-- AWS API Gateway
-- AWS Cognito
-- Kafka / streaming
-- Data plane/control plane
