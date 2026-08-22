@@ -1,0 +1,22 @@
+/* Global reset — this app has no other stylesheet that zeroes out the
+ * browser's UA defaults.
+ *
+ * Browsers default `body` to an 8px margin. LeafletMap's map container is
+ * sized `height: 100vh` (a viewport-relative unit, so it's the same size
+ * regardless of that margin) but it still renders *inside* body's box, so
+ * the leftover 8px margin made the document a few px taller than the
+ * viewport. That was enough to add a page scrollbar, which pushed the
+ * map's bottom-right Leaflet attribution control (required by the OSM/
+ * Leaflet license) below the fold — it was only ever visible by scrolling
+ * down, not from a z-index conflict with any of the app's own fixed
+ * overlays. Zeroing the margin (and `html`/`#root` height, so nothing else
+ * can reintroduce the same few px) makes the map exactly fill the
+ * viewport with no scroll.
+ */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
