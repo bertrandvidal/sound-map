@@ -17,10 +17,10 @@
     "pre-commit": "npx biome check . && npm test"
   },
   "dependencies": {
-    "@upstash/redis": "^1.38.2",
+    "@upstash/redis": "^1.38.4",
     "leaflet": "^1.9.4",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "react-leaflet": "^5.0.0",
     "react-leaflet-cluster": "^4.1.3"
   },
